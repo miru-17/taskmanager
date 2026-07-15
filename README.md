@@ -372,17 +372,6 @@ with a clear error message.
 
 ---
 
-# 📸 Screenshots
-
-You can add screenshots of:
-
-- Dashboard
-- Create Task
-- Edit Task
-- Delete Task
-- Test Results
-
----
 
 # 👩‍💻 Author
 
