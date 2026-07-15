@@ -39,11 +39,7 @@ const Home = () => {
   // Delete Task
   const deleteTask = async (id: number) => {
     try {
-      console.log("Deleting task:", id);
-
-      const response = await api.delete(`/tasks/${id}`);
-
-      console.log("Delete response:", response);
+      await api.delete(`/tasks/${id}`);
 
       toast.success("Task deleted successfully!");
 
@@ -52,11 +48,37 @@ const Home = () => {
       console.error("Delete Error:", err);
 
       if (err.response) {
-        console.log("Status:", err.response.status);
-        console.log("Data:", err.response.data);
+        console.error("Status:", err.response.status);
+        console.error("Data:", err.response.data);
       }
 
       toast.error("Failed to delete task.");
+    }
+  };
+
+  // Inline Status Update
+  const updateStatus = async (
+    id: number,
+    status: "TODO" | "IN_PROGRESS" | "DONE"
+  ) => {
+    try {
+      const task = tasks.find((t) => t.id === id);
+
+      if (!task) return;
+
+      await api.put(`/tasks/${id}`, {
+        title: task.title,
+        description: task.description,
+        status,
+        dueDate: task.dueDate,
+      });
+
+      toast.success("Status updated successfully!");
+
+      await fetchTasks();
+    } catch (err) {
+      console.error(err);
+      toast.error("Failed to update status.");
     }
   };
 
@@ -142,7 +164,6 @@ const Home = () => {
         <div className="max-w-7xl mx-auto p-8">
 
           {/* Header */}
-
           <div className="text-center mb-10">
             <h1 className="text-5xl font-black text-white">
               📋 Task Manager
@@ -154,7 +175,6 @@ const Home = () => {
           </div>
 
           {/* Dashboard */}
-
           <DashboardStats
             total={tasks.length}
             completed={completed}
@@ -162,14 +182,12 @@ const Home = () => {
           />
 
           {/* Search */}
-
           <TaskSearch
             value={search}
             onChange={setSearch}
           />
 
           {/* Task Form */}
-
           <TaskForm
             editingTask={editingTask}
             onTaskCreated={async () => {
@@ -179,13 +197,9 @@ const Home = () => {
           />
 
           {/* Task List */}
-
           <div className="grid md:grid-cols-2 gap-8 mt-10">
-
             {filteredTasks.length === 0 ? (
-
               <div className="col-span-2 rounded-3xl bg-slate-900/60 border border-slate-700 p-12 text-center">
-
                 <h2 className="text-3xl text-white font-bold">
                   📂 No Tasks Found
                 </h2>
@@ -193,11 +207,8 @@ const Home = () => {
                 <p className="text-slate-400 mt-3">
                   Try creating a new task or change your search.
                 </p>
-
               </div>
-
             ) : (
-
               filteredTasks.map((task) => (
                 <TaskCard
                   key={task.id}
@@ -207,18 +218,15 @@ const Home = () => {
                     setTaskToDelete(id);
                     setShowDeleteModal(true);
                   }}
+                  onStatusChange={updateStatus}
                 />
               ))
-
             )}
-
           </div>
-
         </div>
       </div>
 
       {/* Delete Confirmation Modal */}
-
       <ConfirmModal
         isOpen={showDeleteModal}
         title="Delete Task"

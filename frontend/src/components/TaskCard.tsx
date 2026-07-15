@@ -4,12 +4,17 @@ interface TaskCardProps {
   task: Task;
   onEdit: (task: Task) => void;
   onDelete: (id: number) => void;
+  onStatusChange: (
+    id: number,
+    status: "TODO" | "IN_PROGRESS" | "DONE"
+  ) => void;
 }
 
 const TaskCard = ({
   task,
   onEdit,
   onDelete,
+  onStatusChange,
 }: TaskCardProps) => {
   const statusColor = () => {
     switch (task.status) {
@@ -55,33 +60,40 @@ const TaskCard = ({
       {/* Glow Line */}
       <div className="absolute top-0 left-0 h-1 w-full bg-gradient-to-r from-cyan-400 via-blue-500 to-purple-500" />
 
-      {/* Title */}
+      {/* Header */}
       <div className="flex justify-between items-center">
 
         <h2 className="text-2xl font-bold text-white">
           {task.title}
         </h2>
 
-        <span
-          className={`px-4 py-2 rounded-full text-sm font-bold border ${statusColor()}`}
+        {/* Inline Status Dropdown */}
+        <select
+          value={task.status}
+          onChange={(e) =>
+            onStatusChange(
+              task.id,
+              e.target.value as "TODO" | "IN_PROGRESS" | "DONE"
+            )
+          }
+          className={`px-4 py-2 rounded-full text-sm font-bold border ${statusColor()} bg-transparent outline-none cursor-pointer`}
         >
-          {task.status.replace("_", " ")}
-        </span>
+          <option value="TODO">TODO</option>
+          <option value="IN_PROGRESS">IN PROGRESS</option>
+          <option value="DONE">DONE</option>
+        </select>
 
       </div>
 
       {/* Description */}
-
       <p className="text-slate-400 mt-5 leading-7">
         {task.description || "No Description"}
       </p>
 
       {/* Footer */}
-
       <div className="mt-8 flex justify-between items-center">
 
         <div>
-
           <p className="text-slate-500 text-sm">
             Due Date
           </p>
@@ -89,7 +101,6 @@ const TaskCard = ({
           <h4 className="text-cyan-300 font-semibold mt-1">
             📅 {formattedDate}
           </h4>
-
         </div>
 
         <div className="flex gap-3">
@@ -135,7 +146,6 @@ const TaskCard = ({
         </div>
 
       </div>
-
     </div>
   );
 };

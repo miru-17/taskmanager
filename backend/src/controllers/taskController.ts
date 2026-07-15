@@ -1,6 +1,8 @@
 import { Request, Response } from "express";
 import prisma from "../prisma";
 
+const VALID_STATUSES = ["TODO", "IN_PROGRESS", "DONE"] as const;
+
 export const getAllTasks = async (
   req: Request,
   res: Response
@@ -14,11 +16,14 @@ export const getAllTasks = async (
 
     res.status(200).json(tasks);
   } catch (error) {
+    console.error(error);
+
     res.status(500).json({
       message: "Internal Server Error",
     });
   }
 };
+
 export const createTask = async (
   req: Request,
   res: Response
@@ -26,23 +31,39 @@ export const createTask = async (
   try {
     const { title, description, status, dueDate } = req.body;
 
+    // Trim title
+    const trimmedTitle = title?.trim();
+
     // Validate title
-    if (!title || title.trim() === "") {
+    if (!trimmedTitle) {
       res.status(400).json({
         message: "Title is required",
       });
       return;
     }
 
+    // Validate status
+    if (status && !VALID_STATUSES.includes(status)) {
+      res.status(400).json({
+        message:
+          "Invalid status. Allowed values are TODO, IN_PROGRESS, DONE.",
+      });
+      return;
+    }
+
     // Validate due date
     if (dueDate) {
-      const selectedDate = new Date(dueDate);
       const today = new Date();
 
-      today.setHours(0, 0, 0, 0);
-      selectedDate.setHours(0, 0, 0, 0);
+      const todayString = new Date(
+        today.getFullYear(),
+        today.getMonth(),
+        today.getDate()
+      )
+        .toISOString()
+        .split("T")[0];
 
-      if (selectedDate < today) {
+      if (dueDate < todayString) {
         res.status(400).json({
           message: "Due date cannot be in the past",
         });
@@ -52,7 +73,7 @@ export const createTask = async (
 
     const task = await prisma.task.create({
       data: {
-        title,
+        title: trimmedTitle,
         description,
         status,
         dueDate: dueDate ? new Date(dueDate) : null,
@@ -68,6 +89,7 @@ export const createTask = async (
     });
   }
 };
+
 export const getTaskById = async (
   req: Request,
   res: Response
@@ -97,31 +119,49 @@ export const getTaskById = async (
     });
   }
 };
+
 export const updateTask = async (
   req: Request,
   res: Response
 ): Promise<void> => {
   try {
     const id = Number(req.params.id);
+
     const { title, description, status, dueDate } = req.body;
 
+    // Trim title
+    const trimmedTitle = title?.trim();
+
     // Validate title
-    if (!title || title.trim() === "") {
+    if (!trimmedTitle) {
       res.status(400).json({
         message: "Title is required",
       });
       return;
     }
 
+    // Validate status
+    if (status && !VALID_STATUSES.includes(status)) {
+      res.status(400).json({
+        message:
+          "Invalid status. Allowed values are TODO, IN_PROGRESS, DONE.",
+      });
+      return;
+    }
+
     // Validate due date
     if (dueDate) {
-      const selectedDate = new Date(dueDate);
       const today = new Date();
 
-      today.setHours(0, 0, 0, 0);
-      selectedDate.setHours(0, 0, 0, 0);
+      const todayString = new Date(
+        today.getFullYear(),
+        today.getMonth(),
+        today.getDate()
+      )
+        .toISOString()
+        .split("T")[0];
 
-      if (selectedDate < today) {
+      if (dueDate < todayString) {
         res.status(400).json({
           message: "Due date cannot be in the past",
         });
@@ -130,7 +170,9 @@ export const updateTask = async (
     }
 
     const existingTask = await prisma.task.findUnique({
-      where: { id },
+      where: {
+        id,
+      },
     });
 
     if (!existingTask) {
@@ -141,9 +183,11 @@ export const updateTask = async (
     }
 
     const updatedTask = await prisma.task.update({
-      where: { id },
+      where: {
+        id,
+      },
       data: {
-        title,
+        title: trimmedTitle,
         description,
         status,
         dueDate: dueDate ? new Date(dueDate) : null,
@@ -159,6 +203,7 @@ export const updateTask = async (
     });
   }
 };
+
 export const deleteTask = async (
   req: Request,
   res: Response
@@ -166,7 +211,6 @@ export const deleteTask = async (
   try {
     const id = Number(req.params.id);
 
-    // Check if the task exists
     const existingTask = await prisma.task.findUnique({
       where: {
         id,
@@ -180,7 +224,6 @@ export const deleteTask = async (
       return;
     }
 
-    // Delete the task
     await prisma.task.delete({
       where: {
         id,
