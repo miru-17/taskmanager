@@ -4,19 +4,29 @@ import {
   createTask,
   getTaskById,
   updateTask,
-   deleteTask,
+  deleteTask,
 } from "../controllers/taskController";
+import { authenticateToken } from "../middleware/authMiddleware";
 
 const router = Router();
 
+// =====================================
+// Protected Task Routes
+// =====================================
+
 // Get all tasks
-router.get("/", getAllTasks);
+router.get("/", authenticateToken, getAllTasks);
 
 // Create a new task
-router.post("/", createTask);
+router.post("/", authenticateToken, createTask);
 
-// Get a task by ID
-router.get("/:id", getTaskById);
-router.put("/:id", updateTask);
-router.delete("/:id", deleteTask);
+// Get a single task
+router.get("/:id", authenticateToken, getTaskById);
+
+// Update task (Edit form + Inline Status Update)
+router.put("/:id", authenticateToken, updateTask);
+
+// Delete task
+router.delete("/:id", authenticateToken, deleteTask);
+
 export default router;

@@ -1,12 +1,21 @@
 import { Request, Response } from "express";
+import { AuthRequest } from "../types/auth";
 import prisma from "../prisma";
+const VALID_STATUSES = ["TODO", "IN_PROGRESS", "DONE"] as const;
+
+// ======================================================
+// GET ALL TASKS
+// ======================================================
 
 export const getAllTasks = async (
-  req: Request,
+  req:AuthRequest,
   res: Response
 ): Promise<void> => {
   try {
     const tasks = await prisma.task.findMany({
+      where: {
+        userId: req.user!.id,
+      },
       orderBy: {
         createdAt: "desc",
       },
@@ -14,27 +23,42 @@ export const getAllTasks = async (
 
     res.status(200).json(tasks);
   } catch (error) {
+    console.error(error);
+
     res.status(500).json({
       message: "Internal Server Error",
     });
   }
 };
+
+// ======================================================
+// CREATE TASK
+// ======================================================
+
 export const createTask = async (
-  req: Request,
+  req: AuthRequest,
   res: Response
 ): Promise<void> => {
   try {
-    const { title, description, status, dueDate } = req.body;
+    let { title, description, status, dueDate } = req.body;
 
-    // Validate title
-    if (!title || title.trim() === "") {
+    title = title?.trim();
+
+    if (!title) {
       res.status(400).json({
         message: "Title is required",
       });
       return;
     }
 
-    // Validate due date
+    if (status && !VALID_STATUSES.includes(status)) {
+      res.status(400).json({
+        message:
+          "Invalid status. Allowed values are TODO, IN_PROGRESS, DONE.",
+      });
+      return;
+    }
+
     if (dueDate) {
       const selectedDate = new Date(dueDate);
       const today = new Date();
@@ -56,6 +80,11 @@ export const createTask = async (
         description,
         status,
         dueDate: dueDate ? new Date(dueDate) : null,
+        user: {
+          connect: {
+            id: req.user!.id,
+          },
+        },
       },
     });
 
@@ -68,16 +97,22 @@ export const createTask = async (
     });
   }
 };
+
+// ======================================================
+// GET TASK BY ID
+// ======================================================
+
 export const getTaskById = async (
-  req: Request,
+  req: AuthRequest,
   res: Response
 ): Promise<void> => {
   try {
     const id = Number(req.params.id);
 
-    const task = await prisma.task.findUnique({
+    const task = await prisma.task.findFirst({
       where: {
         id,
+        userId: req.user!.id,
       },
     });
 
@@ -97,23 +132,42 @@ export const getTaskById = async (
     });
   }
 };
+
+// ======================================================
+// UPDATE TASK
+// ======================================================
+
 export const updateTask = async (
-  req: Request,
+  req: AuthRequest,
   res: Response
 ): Promise<void> => {
   try {
     const id = Number(req.params.id);
-    const { title, description, status, dueDate } = req.body;
 
-    // Validate title
-    if (!title || title.trim() === "") {
-      res.status(400).json({
-        message: "Title is required",
+    const existingTask = await prisma.task.findFirst({
+      where: {
+        id,
+        userId: req.user!.id,
+      },
+    });
+
+    if (!existingTask) {
+      res.status(404).json({
+        message: "Task not found",
       });
       return;
     }
 
-    // Validate due date
+    let { title, description, status, dueDate } = req.body;
+
+    if (status && !VALID_STATUSES.includes(status)) {
+      res.status(400).json({
+        message:
+          "Invalid status. Allowed values are TODO, IN_PROGRESS, DONE.",
+      });
+      return;
+    }
+
     if (dueDate) {
       const selectedDate = new Date(dueDate);
       const today = new Date();
@@ -129,24 +183,32 @@ export const updateTask = async (
       }
     }
 
-    const existingTask = await prisma.task.findUnique({
-      where: { id },
-    });
-
-    if (!existingTask) {
-      res.status(404).json({
-        message: "Task not found",
-      });
-      return;
-    }
-
     const updatedTask = await prisma.task.update({
-      where: { id },
+      where: {
+        id,
+      },
       data: {
-        title,
-        description,
-        status,
-        dueDate: dueDate ? new Date(dueDate) : null,
+        title:
+          title !== undefined
+            ? title.trim()
+            : existingTask.title,
+
+        description:
+          description !== undefined
+            ? description
+            : existingTask.description,
+
+        status:
+          status !== undefined
+            ? status
+            : existingTask.status,
+
+        dueDate:
+          dueDate !== undefined
+            ? dueDate
+              ? new Date(dueDate)
+              : null
+            : existingTask.dueDate,
       },
     });
 
@@ -159,17 +221,22 @@ export const updateTask = async (
     });
   }
 };
+
+// ======================================================
+// DELETE TASK
+// ======================================================
+
 export const deleteTask = async (
-  req: Request,
+  req: AuthRequest,
   res: Response
 ): Promise<void> => {
   try {
     const id = Number(req.params.id);
 
-    // Check if the task exists
-    const existingTask = await prisma.task.findUnique({
+    const existingTask = await prisma.task.findFirst({
       where: {
         id,
+        userId: req.user!.id,
       },
     });
 
@@ -180,7 +247,6 @@ export const deleteTask = async (
       return;
     }
 
-    // Delete the task
     await prisma.task.delete({
       where: {
         id,

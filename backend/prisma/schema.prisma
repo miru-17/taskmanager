@@ -13,12 +13,35 @@ enum Status {
   DONE
 }
 
+model User {
+  id               Int       @id @default(autoincrement())
+  email            String    @unique
+  password         String
+
+  // Password Reset
+  resetToken       String?
+  resetTokenExpiry DateTime?
+
+  // Timestamps
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+
+  // Relationships
+  tasks            Task[]
+}
+
 model Task {
   id          Int       @id @default(autoincrement())
   title       String
   description String?
   status      Status    @default(TODO)
   dueDate     DateTime?
+
+  // Timestamps
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
+
+  // Relationship
+  userId      Int
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
 }

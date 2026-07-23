@@ -17,11 +17,16 @@
 
     "sourceMap": true
   },
+   "ts-node": {
+    "files": true
+  },
 
-  "include": [
-    "src",
-    "tests"
-  ],
+ "include": [
+  "src/**/*.ts",
+  "src/**/*.d.ts",
+    "tests/**/*.ts"
+  
+],
 
   "exclude": [
     "node_modules",
