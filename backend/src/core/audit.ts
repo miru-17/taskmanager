@@ -49,7 +49,9 @@ export type AuditAction =
   | "approval.requested"
   | "approval.decided"
   | "approval.cancelled"
-  | "project.approval_policy_changed";
+  | "project.approval_policy_changed"
+  | "comment.created"
+  | "comment.moderated";
 
 interface AuditEntry {
   action: AuditAction;

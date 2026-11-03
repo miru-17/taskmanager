@@ -16,6 +16,7 @@ import type { BulkInput, CreateTaskInput, ListTasksQuery, UpdateTaskInput } from
 import { afterCompletion, assertCanComplete, insertTask, logActivity, nextPosition } from "./lifecycle";
 import { writeFieldValues } from "../fields/fields.service";
 import { describeRule } from "../recurrence/schedule";
+import { notify } from "../notifications/notifications.service";
 
 export type { Actor } from "../../core/access";
 
@@ -428,6 +429,7 @@ export const createTask = async (actor: Actor, input: CreateTaskInput) => {
     })
   );
 
+  if (input.assigneeId) await notify({ orgId: actor.tenant.organizationId, type: "ASSIGNED", actorId: actor.userId, taskId: id, userIds: [input.assigneeId] });
   return toListItem(await findVisible(actor, id));
 };
 
@@ -511,7 +513,31 @@ const applyUpdate = async (db: Prisma.TransactionClient, actor: Actor, existing:
   }
   if (Object.keys(changes).length) await logActivity(db, existing.id, actor.userId, "updated", changes as Prisma.InputJsonValue);
   if (data.status === "DONE") await afterCompletion(db, existing.id, actor.userId, approvalToConsume);
-  return Object.keys(changes);
+  return changes;
+};
+
+type Changes = Record<string, { from: unknown; to: unknown }>;
+
+/**
+ * Notifications for one task's committed changes: the new assignee hears they were assigned,
+ * watchers hear about status changes. Runs after the transaction, so a refused update never notifies.
+ */
+const notifyChanges = async (actor: Actor, taskId: number, changes: Changes) => {
+  const orgId = actor.tenant.organizationId;
+  const assignee = changes.assigneeId?.to;
+  if (typeof assignee === "number") await notify({ orgId, type: "ASSIGNED", actorId: actor.userId, taskId, userIds: [assignee] });
+  if (changes.status) {
+    const watchers = await prisma.taskWatcher.findMany({ where: { taskId }, select: { userId: true } });
+    await notify({
+      orgId,
+      type: "STATUS_CHANGED",
+      actorId: actor.userId,
+      taskId,
+      // The new assignee already got "assigned"; don't double up
+      userIds: watchers.map((w) => w.userId).filter((u) => u !== assignee),
+      data: { from: changes.status.from, to: changes.status.to },
+    });
+  }
 };
 
 export const updateTask = async (actor: Actor, id: number, input: UpdateTaskInput) => {
@@ -521,7 +547,8 @@ export const updateTask = async (actor: Actor, id: number, input: UpdateTaskInpu
   if (existing.archivedAt) throw badRequest("Unarchive this task before editing it");
   await assertProjectWritable(existing.projectId);
 
-  await prisma.$transaction((tx) => applyUpdate(tx, actor, existing, input));
+  const changes = await prisma.$transaction((tx) => applyUpdate(tx, actor, existing, input));
+  await notifyChanges(actor, id, changes);
   return toListItem(await findVisible(actor, id));
 };
 
@@ -693,10 +720,11 @@ export const bulk = async (req: Request, actor: Actor, input: BulkInput) => {
     if (archived) throw badRequest("Some tasks belong to an archived project");
   }
 
+  const bulkChanges: [number, Changes][] = [];
   await prisma.$transaction(
     async (tx) => {
       for (const task of tasks) {
-        if (input.action === "update") await applyUpdate(tx, actor, task, input.data ?? {});
+        if (input.action === "update") bulkChanges.push([task.id, await applyUpdate(tx, actor, task, input.data ?? {})]);
         else if (input.action === "delete") {
           await softDelete(tx, task.id);
           await logActivity(tx, task.id, actor.userId, "deleted");
@@ -717,5 +745,6 @@ export const bulk = async (req: Request, actor: Actor, input: BulkInput) => {
     targetType: "task",
     metadata: { action: input.action, count: tasks.length, ids },
   });
+  for (const [taskId, changes] of bulkChanges) await notifyChanges(actor, taskId, changes);
   return { updated: tasks.length };
 };

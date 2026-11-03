@@ -24,3 +24,4 @@ process.env.AUTH_RATE_LIMIT_MAX ??= "1000";
 // Attachments go to a throwaway folder per test run, never the real upload directory
 process.env.UPLOAD_DIR = require("node:path").join(require("node:os").tmpdir(), `taskforge-test-uploads-${process.pid}`);
 process.env.MAX_UPLOAD_MB ??= "1";
+process.env.STREAM_RECHECK_MS ??= "300";

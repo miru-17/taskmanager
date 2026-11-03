@@ -5,6 +5,7 @@ import { authenticate, currentAuth } from "../../core/auth";
 import { requireTenant, currentTenant } from "../../core/tenant";
 import { requirePermission } from "../../core/rbac";
 import { validate } from "../../core/validate";
+import { publishWrites } from "../../core/publishWrites";
 import { cuidSchema } from "../../core/schemas";
 import { AppError } from "../../core/errors";
 import { config } from "../../core/config";
@@ -49,7 +50,7 @@ taskAttachmentsRouter.post("/", requirePermission("tasks:update_any", "tasks:upd
 
 /** Mounted at /attachments */
 export const attachmentsRouter = Router();
-attachmentsRouter.use(authenticate, requireTenant);
+attachmentsRouter.use(authenticate, requireTenant, publishWrites);
 
 attachmentsRouter.get("/usage", async (req, res) => {
   res.json(await files.storageUsage(currentTenant(req).organizationId));
@@ -70,6 +71,6 @@ attachmentsRouter.get("/:attachmentId/download", requirePermission("tasks:read")
 });
 
 attachmentsRouter.delete("/:attachmentId", validate({ params: attachmentParams }), async (req, res) => {
-  await files.deleteAttachment(req, actor(req), req.params.attachmentId as string);
+  res.locals.changedTaskIds = [await files.deleteAttachment(req, actor(req), req.params.attachmentId as string)];
   res.json({ message: "File removed" });
 });

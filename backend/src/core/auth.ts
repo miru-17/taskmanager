@@ -9,6 +9,8 @@ export interface AuthContext {
   sessionId: string;
   /** Active organisation chosen server-side (session), never taken from request input. */
   organizationId: string | null;
+  /** When the access token stops being valid (ms since epoch); long-lived streams close then */
+  tokenExpiresAt?: number;
 }
 
 declare module "express-serve-static-core" {
@@ -47,7 +49,7 @@ const decodeAccessToken = (token: string): AuthContext => {
   if (!Number.isInteger(userId) || typeof decoded.sid !== "string") {
     throw new Error("Malformed token payload");
   }
-  return { userId, sessionId: decoded.sid, organizationId: decoded.org ?? null };
+  return { userId, sessionId: decoded.sid, organizationId: decoded.org ?? null, tokenExpiresAt: decoded.exp ? decoded.exp * 1000 : undefined };
 };
 
 /**

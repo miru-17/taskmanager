@@ -3,6 +3,7 @@ import { authenticate, currentAuth } from "../../core/auth";
 import { requireTenant, currentTenant } from "../../core/tenant";
 import { requirePermission } from "../../core/rbac";
 import { validate } from "../../core/validate";
+import { publishWrites } from "../../core/publishWrites";
 import * as tasks from "./tasks.service";
 import { clearRecurrence, recurrenceBody, setRecurrence } from "../recurrence/recurrence.service";
 import { requestApproval, requestBody as approvalRequestBody } from "../approvals/approvals.service";
@@ -23,7 +24,7 @@ import {
 
 export const tasksRouter = Router();
 
-tasksRouter.use(authenticate, requireTenant);
+tasksRouter.use(authenticate, requireTenant, publishWrites);
 
 const actor = (req: Request): tasks.Actor => ({ userId: currentAuth(req).userId, tenant: currentTenant(req) });
 const taskId = (req: Request) => req.params.id as unknown as number;

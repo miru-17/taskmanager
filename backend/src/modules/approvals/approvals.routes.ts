@@ -3,6 +3,7 @@ import { z } from "zod";
 import { authenticate, currentAuth } from "../../core/auth";
 import { requireTenant, currentTenant } from "../../core/tenant";
 import { validate } from "../../core/validate";
+import { publishWrites } from "../../core/publishWrites";
 import { cuidSchema } from "../../core/schemas";
 import type { Actor } from "../../core/access";
 import * as approvals from "./approvals.service";
@@ -12,7 +13,7 @@ const params = z.object({ requestId: cuidSchema });
 
 /** Mounted at /approvals. Deciding needs no task-edit permission: being named an approver is the permission. */
 export const approvalsRouter = Router();
-approvalsRouter.use(authenticate, requireTenant);
+approvalsRouter.use(authenticate, requireTenant, publishWrites);
 
 approvalsRouter.get("/", validate({ query: approvals.listQuery }), async (req, res) => {
   res.json(await approvals.listApprovals(actor(req), (res.locals.query as z.infer<typeof approvals.listQuery>).scope));

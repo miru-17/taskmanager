@@ -6,6 +6,7 @@ import { audit } from "../../core/audit";
 import { projectAccessWhere, resolveProjectAccess, type Actor } from "../../core/access";
 import { assertProjectWritable, editableTask, findVisible, getTask, visibleTasks } from "../tasks/tasks.service";
 import { afterCompletion, logActivity, nextPosition } from "../tasks/lifecycle";
+import { excerpt, notify } from "../notifications/notifications.service";
 
 export const requestBody = z.object({
   approverIds: z.array(z.number().int().positive()).min(1, "Choose at least one approver").max(10, "At most 10 approvers"),
@@ -76,6 +77,7 @@ export const requestApproval = async (req: Request, actor: Actor, taskId: number
   });
 
   await audit(req, { action: "approval.requested", organizationId, targetType: "task", targetId: taskId, metadata: { requestId: request.id, approverIds, rule: input.rule } });
+  await notify({ orgId: organizationId, type: "APPROVAL_REQUESTED", actorId: actor.userId, taskId, userIds: approverIds, data: { requestId: request.id, ...(input.note ? { excerpt: excerpt(input.note) } : {}) } });
   return getTask(actor, taskId);
 };
 
@@ -149,6 +151,16 @@ export const decide = async (req: Request, actor: Actor, requestId: string, inpu
   });
 
   await audit(req, { action: "approval.decided", organizationId: actor.tenant.organizationId, targetType: "task", targetId: r.taskId, metadata: { requestId, decision: input.decision, outcome: outcome.status } });
+  if (outcome.status !== "PENDING" && r.requestedById) {
+    await notify({
+      orgId: actor.tenant.organizationId,
+      type: "APPROVAL_DECIDED",
+      actorId: actor.userId,
+      taskId: r.taskId,
+      userIds: [r.requestedById],
+      data: { outcome: outcome.status, completed: outcome.completed, ...(input.comment ? { excerpt: excerpt(input.comment) } : {}) },
+    });
+  }
   return { ...outcome, task: await getTask(actor, r.taskId) };
 };
 

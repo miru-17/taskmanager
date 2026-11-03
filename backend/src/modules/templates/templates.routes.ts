@@ -4,6 +4,7 @@ import { authenticate, currentAuth } from "../../core/auth";
 import { requireTenant, currentTenant } from "../../core/tenant";
 import { requirePermission } from "../../core/rbac";
 import { validate } from "../../core/validate";
+import { publishWrites } from "../../core/publishWrites";
 import { cuidSchema } from "../../core/schemas";
 import type { Actor } from "../../core/access";
 import * as templates from "./templates.service";
@@ -16,7 +17,7 @@ const tid = (req: Request) => req.params.templateId as string;
 
 /** Mounted at /templates */
 export const templatesRouter = Router();
-templatesRouter.use(authenticate, requireTenant, requirePermission("tasks:read"));
+templatesRouter.use(authenticate, requireTenant, requirePermission("tasks:read"), publishWrites);
 
 templatesRouter.get("/", validate({ query: listQuery }), async (req, res) => {
   res.json(await templates.listTemplates(actor(req), (res.locals.query as z.infer<typeof listQuery>).projectId));

@@ -107,6 +107,7 @@ export const deleteAttachment = async (req: Request, actor: Actor, id: string) =
   });
   await storage.remove(a.storageKey).catch((err) => logger.warn({ err, key: a.storageKey }, "Could not remove attachment file"));
   await audit(req, { action: "attachment.deleted", organizationId: actor.tenant.organizationId, targetType: "attachment", targetId: id, metadata: { taskId: a.taskId, fileName: a.fileName } });
+  return a.taskId;
 };
 
 /** For project deletion: rows go with the cascade, files are removed afterwards. */

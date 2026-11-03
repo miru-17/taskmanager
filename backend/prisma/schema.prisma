@@ -38,15 +38,21 @@ model User {
 
   teamMemberships    TeamMember[]
   projectMemberships ProjectMember[]
-  projectsOwned      Project[]         @relation("ProjectOwner")
-  tasksAssigned      Task[]            @relation("TaskAssignee")
+  projectsOwned      Project[]                @relation("ProjectOwner")
+  tasksAssigned      Task[]                   @relation("TaskAssignee")
   watching           TaskWatcher[]
   taskActivities     TaskActivity[]
   savedViews         SavedView[]
   templatesCreated   TaskTemplate[]
   attachments        Attachment[]
-  approvalsRequested ApprovalRequest[] @relation("ApprovalRequester")
+  approvalsRequested ApprovalRequest[]        @relation("ApprovalRequester")
   approvalSteps      ApprovalStep[]
+  comments           TaskComment[]
+  reactions          CommentReaction[]
+  mentions           CommentMention[]
+  notifications      Notification[]           @relation("NotificationRecipient")
+  notificationsSent  Notification[]           @relation("NotificationActor")
+  notificationPrefs  NotificationPreference[]
 }
 
 /// One row per signed-in device. The refresh token itself is never stored, only its SHA-256.
@@ -102,17 +108,19 @@ model Organization {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  memberships Membership[]
-  invitations Invitation[]
-  tasks       Task[]
-  auditLogs   AuditLog[]
-  sessions    Session[]
-  teams       Team[]
-  projects    Project[]
-  labels      Label[]
-  savedViews  SavedView[]
-  templates   TaskTemplate[]
-  attachments Attachment[]
+  memberships       Membership[]
+  invitations       Invitation[]
+  tasks             Task[]
+  auditLogs         AuditLog[]
+  sessions          Session[]
+  teams             Team[]
+  projects          Project[]
+  labels            Label[]
+  savedViews        SavedView[]
+  templates         TaskTemplate[]
+  attachments       Attachment[]
+  notifications     Notification[]
+  notificationPrefs NotificationPreference[]
 }
 
 enum OrgRole {
@@ -352,15 +360,17 @@ model Task {
   previousOccurrence Task?             @relation("Recurrence", fields: [previousOccurrenceId], references: [id], onDelete: SetNull)
   nextOccurrence     Task?             @relation("Recurrence")
 
-  labels      TaskLabel[]
-  checklist   ChecklistItem[]
-  dependsOn   TaskDependency[]  @relation("DependentTask")
-  blocks      TaskDependency[]  @relation("BlockingTask")
-  watchers    TaskWatcher[]
-  activities  TaskActivity[]
-  fieldValues TaskFieldValue[]
-  attachments Attachment[]
-  approvals   ApprovalRequest[]
+  labels        TaskLabel[]
+  checklist     ChecklistItem[]
+  dependsOn     TaskDependency[]  @relation("DependentTask")
+  blocks        TaskDependency[]  @relation("BlockingTask")
+  watchers      TaskWatcher[]
+  activities    TaskActivity[]
+  fieldValues   TaskFieldValue[]
+  attachments   Attachment[]
+  approvals     ApprovalRequest[]
+  comments      TaskComment[]
+  notifications Notification[]
 
   @@unique([projectId, number])
   @@index([organizationId, createdAt])
@@ -645,4 +655,99 @@ model ApprovalStep {
 
   @@unique([requestId, approverId])
   @@index([approverId, decision])
+}
+
+// ─── Phase 4: collaboration ──────────────────────────────────────────────────
+
+/// A comment on a task. Replies are one level deep (parentId points at a top-level comment).
+model TaskComment {
+  id        String    @id @default(cuid())
+  taskId    Int
+  authorId  Int?
+  parentId  String?
+  /// Plain text with a tiny markdown subset; mentions are stored as @[Name](user:ID)
+  body      String
+  editedAt  DateTime?
+  /// Soft delete keeps the thread readable ("comment deleted") when it has replies
+  deletedAt DateTime?
+  createdAt DateTime  @default(now())
+
+  task      Task              @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  author    User?             @relation(fields: [authorId], references: [id], onDelete: SetNull)
+  parent    TaskComment?      @relation("Replies", fields: [parentId], references: [id], onDelete: Cascade)
+  replies   TaskComment[]     @relation("Replies")
+  reactions CommentReaction[]
+  mentions  CommentMention[]
+
+  @@index([taskId, createdAt])
+  @@index([parentId])
+}
+
+model CommentReaction {
+  commentId String
+  userId    Int
+  emoji     String
+  createdAt DateTime @default(now())
+
+  comment TaskComment @relation(fields: [commentId], references: [id], onDelete: Cascade)
+  user    User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([commentId, userId, emoji])
+}
+
+/// Who a comment mentions (only people who could see the task at the time)
+model CommentMention {
+  commentId String
+  userId    Int
+
+  comment TaskComment @relation(fields: [commentId], references: [id], onDelete: Cascade)
+  user    User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([commentId, userId])
+  @@index([userId])
+}
+
+enum NotificationType {
+  MENTIONED
+  COMMENTED
+  ASSIGNED
+  STATUS_CHANGED
+  APPROVAL_REQUESTED
+  APPROVAL_DECIDED
+  DUE_SOON
+}
+
+model Notification {
+  id             String           @id @default(cuid())
+  organizationId String
+  userId         Int
+  actorId        Int?
+  type           NotificationType
+  taskId         Int?
+  /// Small, display-ready snapshot (task key/title, excerpt…) so the inbox needs no joins
+  data           Json
+  readAt         DateTime?
+  emailedAt      DateTime?
+  createdAt      DateTime         @default(now())
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  user         User         @relation("NotificationRecipient", fields: [userId], references: [id], onDelete: Cascade)
+  actor        User?        @relation("NotificationActor", fields: [actorId], references: [id], onDelete: SetNull)
+  task         Task?        @relation(fields: [taskId], references: [id], onDelete: Cascade)
+
+  @@index([userId, organizationId, readAt, createdAt])
+}
+
+/// Per user and organization: which notification types also go by email (in-app is always on)
+model NotificationPreference {
+  userId         Int
+  organizationId String
+  emailTypes     NotificationType[]
+  createdAt      DateTime           @default(now())
+  updatedAt      DateTime           @updatedAt
+
+  user         User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@id([userId, organizationId])
 }

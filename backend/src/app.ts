@@ -15,6 +15,9 @@ import { fieldsRouter } from "./modules/fields/fields.routes";
 import { templatesRouter } from "./modules/templates/templates.routes";
 import { attachmentsRouter } from "./modules/attachments/attachments.routes";
 import { approvalsRouter } from "./modules/approvals/approvals.routes";
+import { commentsRouter, projectFeedRouter, taskCommentsRouter } from "./modules/comments/comments.routes";
+import { notificationsRouter } from "./modules/notifications/notifications.routes";
+import { eventsRouter } from "./modules/realtime/events.routes";
 
 export const createApp = () => {
   const app = express();
@@ -54,6 +57,11 @@ export const createApp = () => {
   app.use("/templates", templatesRouter);
   app.use("/attachments", attachmentsRouter);
   app.use("/approvals", approvalsRouter);
+  app.use("/tasks/:id/comments", taskCommentsRouter);
+  app.use("/comments", commentsRouter);
+  app.use("/projects/:projectId/activity", projectFeedRouter);
+  app.use("/notifications", notificationsRouter);
+  app.use("/events", eventsRouter);
   app.use("/admin", adminRouter);
 
   app.use(notFoundHandler);
