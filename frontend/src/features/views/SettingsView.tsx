@@ -11,6 +11,7 @@ import { Avatar, Button, ConfirmDialog, IconButton, fieldBase } from "../../ui";
 import { cx } from "../../ui/cx";
 import ProjectDialog from "../projects/ProjectDialog";
 import { useProjectOutlet } from "../projects/ProjectLayout";
+import { ApprovalPolicyCard, CustomFieldsCard, TemplatesCard } from "./SettingsExtras";
 
 const ROLES: { value: ProjectRole; label: string; hint: string }[] = [
   { value: "MANAGER", label: "Manager", hint: "Manages settings and every task" },
@@ -192,6 +193,9 @@ const SettingsView = () => {
         </Card>
         <Members />
         <Milestones />
+        <CustomFieldsCard project={project} />
+        <ApprovalPolicyCard project={project} />
+        <TemplatesCard project={project} />
         <Card title={archived ? "Archived" : "Archive"} description={archived ? "Restore the project to make it editable again." : "Archived projects are hidden from the sidebar and become read-only. Nothing is deleted."}>
           <div className="flex flex-wrap gap-2">
             <Button loading={setStatus.isPending} onClick={() => setStatus.mutate(archived ? "ACTIVE" : "ARCHIVED", { onSuccess: () => toast.success(archived ? "Project restored" : "Project archived") })}>

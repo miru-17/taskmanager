@@ -1,10 +1,10 @@
 import { useEffect, useState } from "react";
 import { NavLink, Outlet, useLocation, useNavigate } from "react-router-dom";
 import toast from "react-hot-toast";
-import { Building2, ChevronsUpDown, FolderKanban, ListChecks, LogOut, Menu, Moon, Plus, Shield, Sun, Users, X } from "lucide-react";
+import { BadgeCheck, Building2, ChevronsUpDown, FolderKanban, ListChecks, LogOut, Menu, Moon, Plus, Shield, Sun, Users, X } from "lucide-react";
 import { useAuth } from "../../context/AuthContext";
 import { useTheme } from "../../context/ThemeContext";
-import { useProjects } from "../../data/queries";
+import { useApprovalCount, useProjects } from "../../data/queries";
 import { getErrorMessage } from "../../data/errors";
 import { ROLE_LABELS } from "../../types/auth";
 import { displayName } from "../../types/Task";
@@ -64,6 +64,7 @@ const Sidebar = ({ onNavigate }: { onNavigate?: () => void }) => {
   const { data: projects } = useProjects();
   const { open: openComposer } = useComposer();
   const isClient = organization?.role === "CLIENT";
+  const { data: pendingApprovals } = useApprovalCount();
 
   return (
     <nav aria-label="Main" className="flex h-full flex-col gap-1 p-3" onClick={(e) => (e.target as HTMLElement).closest("a") && onNavigate?.()}>
@@ -82,6 +83,14 @@ const Sidebar = ({ onNavigate }: { onNavigate?: () => void }) => {
 
       <NavLink to="/my-tasks" className={navItem}>
         <ListChecks className="size-4" aria-hidden /> My tasks
+      </NavLink>
+      <NavLink to="/approvals" className={navItem}>
+        <BadgeCheck className="size-4" aria-hidden /> Approvals
+        {!!pendingApprovals && (
+          <span className="ml-auto rounded-full bg-accent px-1.5 text-[11px] font-semibold text-accent-fg" aria-label={`${pendingApprovals} waiting on you`}>
+            {pendingApprovals}
+          </span>
+        )}
       </NavLink>
       <NavLink to="/projects" end className={navItem}>
         <FolderKanban className="size-4" aria-hidden /> Projects

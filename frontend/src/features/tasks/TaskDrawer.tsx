@@ -1,9 +1,13 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import toast from "react-hot-toast";
-import { Archive, ArchiveRestore, Bell, BellOff, Ban, Link2, Plus, Trash2, X } from "lucide-react";
+import { Archive, ArchiveRestore, Bell, BellOff, Ban, BookmarkPlus, Link2, Plus, Trash2, X } from "lucide-react";
 import api from "../../services/api";
-import { useDeleteTask, useMilestones, useTask, useTaskAction, useUpdateTask, type TaskInput } from "../../data/queries";
+import { useDeleteTask, useFields, useMilestones, useTask, useTaskAction, useUpdateTask, type TaskInput } from "../../data/queries";
+import { useAuth } from "../../context/AuthContext";
+import CustomFieldInput from "./CustomFieldInput";
+import { ApprovalSection, AttachmentsSection, RecurrenceSection, Section } from "./DrawerExtras";
+import SaveTemplateDialog from "../templates/SaveTemplateDialog";
 import { errorStatus, getErrorMessage } from "../../data/errors";
 import { timeAgo, toDateInput } from "../../data/dates";
 import {
@@ -30,15 +34,6 @@ const Row = ({ label, children }: { label: string; children: React.ReactNode }) 
   </div>
 );
 
-const Section = ({ title, action, children }: { title: string; action?: React.ReactNode; children: React.ReactNode }) => (
-  <section className="border-t border-line px-6 py-4">
-    <div className="mb-2 flex items-center justify-between">
-      <h3 className="text-xs font-semibold uppercase tracking-wider text-muted">{title}</h3>
-      {action}
-    </div>
-    {children}
-  </section>
-);
 
 // ─── Activity wording ────────────────────────────────────────────────────────
 
@@ -78,6 +73,8 @@ const describe = (a: Activity): string[] => {
       return Object.entries(c).map(([f, v]) => {
         const { from, to } = v as { from: unknown; to: unknown };
         const name = FIELD_LABELS[f] ?? f;
+        // Custom field values are option/user ids or free text: name the field, not the raw value
+        if (f.startsWith("field:")) return `changed ${f.slice(6)}`;
         return OPAQUE.has(f) ? `changed the ${name}` : `changed ${name} from ${show(f, from)} to ${show(f, to)}`;
       });
     case "archived":
@@ -98,6 +95,26 @@ const describe = (a: Activity): string[] => {
       return [`unchecked “${String(c.text)}”`];
     case "checklist_removed":
       return [`removed “${String(c.text)}” from the checklist`];
+    case "attachment_added":
+      return [`attached ${String(c.fileName)}`];
+    case "attachment_removed":
+      return [`removed the file ${String(c.fileName)}`];
+    case "recurrence_set":
+      return [`set this to repeat: ${String(c.rule)}`];
+    case "recurrence_stopped":
+      return ["stopped this task repeating"];
+    case "recurrence_next":
+      return [`completed this occurrence; the next one is due ${String(c.dueDate)}`];
+    case "approval_requested":
+      return [`requested approval${c.note ? `: “${String(c.note)}”` : ""}`];
+    case "approval_approved":
+      return [`approved${c.comment ? `: “${String(c.comment)}”` : ""}`];
+    case "approval_rejected":
+      return [`requested changes${c.comment ? `: “${String(c.comment)}”` : ""}`];
+    case "approval_cancelled":
+      return ["cancelled the approval request"];
+    case "approval_waiting_on_blockers":
+      return ["approval granted; waiting on blocking tasks before completing"];
     default:
       return [a.type.replace(/_/g, " ")];
   }
@@ -260,6 +277,9 @@ const TaskBody = ({ task }: { task: TaskDetail }) => {
   const update = useUpdateTask();
   const remove = useDeleteTask();
   const { data: milestones } = useMilestones(task.projectId);
+  const { data: fields } = useFields(task.projectId);
+  const { can } = useAuth();
+  const [savingTemplate, setSavingTemplate] = useState(false);
   const watch = useTaskAction((on: boolean) => (on ? api.post(`/tasks/${task.id}/watch`) : api.delete(`/tasks/${task.id}/watch`)));
   const archive = useTaskAction((on: boolean) => api.post(`/tasks/${task.id}/${on ? "archive" : "unarchive"}`), "Could not change the archive state");
   const [confirmDelete, setConfirmDelete] = useState(false);
@@ -298,6 +318,11 @@ const TaskBody = ({ task }: { task: TaskDetail }) => {
           <IconButton label="Copy link" onClick={copyLink}>
             <Link2 className="size-4" />
           </IconButton>
+          {can("templates:manage") && !task.parentId && (
+            <IconButton label="Save as template" onClick={() => setSavingTemplate(true)}>
+              <BookmarkPlus className="size-4" />
+            </IconButton>
+          )}
           {task.permissions.edit && (
             <IconButton label={task.archivedAt ? "Restore from archive" : "Archive"} onClick={() => archive.mutate(!task.archivedAt)}>
               {task.archivedAt ? <ArchiveRestore className="size-4" /> : <Archive className="size-4" />}
@@ -434,6 +459,11 @@ const TaskBody = ({ task }: { task: TaskDetail }) => {
               </select>
             </Row>
           )}
+          {fields?.map((f) => (
+            <Row key={f.id} label={f.name + (f.required ? " *" : "")}>
+              <CustomFieldInput field={f} projectId={task.projectId} value={task.customFields[f.id] ?? null} disabled={!editable} onCommit={(v) => save({ customFields: { [f.id]: v } })} />
+            </Row>
+          ))}
           <div className="pt-1">
             <LabelPicker value={task.labels.map((l) => l.id)} disabled={!editable} onChange={(labelIds) => save({ labelIds })} />
           </div>
@@ -469,6 +499,9 @@ const TaskBody = ({ task }: { task: TaskDetail }) => {
 
         <Checklist task={task} />
         <Dependencies task={task} />
+        <ApprovalSection task={task} />
+        <RecurrenceSection task={task} />
+        <AttachmentsSection task={task} />
 
         <Section title="Activity">
           <p className="mb-3 text-xs text-muted">
@@ -491,6 +524,7 @@ const TaskBody = ({ task }: { task: TaskDetail }) => {
         </Section>
       </div>
 
+      <SaveTemplateDialog task={task} open={savingTemplate} onClose={() => setSavingTemplate(false)} />
       <ConfirmDialog
         open={confirmDelete}
         title={`Delete ${task.key}?`}

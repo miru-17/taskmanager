@@ -42,7 +42,7 @@ export const apiModule = {
   isSessionExpiry: () => false,
 };
 
-const WORKER: Permission[] = ["tasks:read", "tasks:create", "tasks:update_any", "tasks:delete_any", "labels:manage"];
+const WORKER: Permission[] = ["tasks:read", "tasks:create", "tasks:update_any", "tasks:delete_any", "labels:manage", "templates:manage"];
 const ROLE_PERMS: Record<OrgRole, Permission[]> = {
   ORG_ADMIN: ["org:read", "org:update", "members:read", "members:invite", "members:manage", "invitations:manage", "audit:read", "projects:create", "projects:manage_any", "teams:manage", ...WORKER],
   PROJECT_MANAGER: ["org:read", "members:read", "members:invite", "invitations:manage", "projects:create", "projects:manage_any", "teams:manage", ...WORKER],

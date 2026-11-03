@@ -15,6 +15,7 @@ import AppShell from "./features/shell/AppShell";
 import MyTasks from "./features/pages/MyTasks";
 import Projects from "./features/pages/Projects";
 import Teams from "./features/pages/Teams";
+import Approvals from "./features/pages/Approvals";
 import ProjectLayout, { ProjectIndex } from "./features/projects/ProjectLayout";
 import OverviewView from "./features/views/OverviewView";
 import BoardView from "./features/views/BoardView";
@@ -51,6 +52,7 @@ export function AppRoutes() {
           <Route path="settings" element={<SettingsView />} />
         </Route>
         <Route path="teams" element={<Teams />} />
+        <Route path="approvals" element={<Approvals />} />
         <Route path="change-password" element={<ChangePassword />} />
         <Route path="settings/organization" element={<OrganizationSettings />} />
         <Route path="settings/security" element={<SecuritySettings />} />

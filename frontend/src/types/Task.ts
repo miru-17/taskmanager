@@ -77,6 +77,11 @@ export interface Task {
   dependsOnIds: number[];
   blockedBy: number[];
   isBlocked: boolean;
+  /** fieldId → stored value (see CustomField for the type) */
+  customFields: Record<string, unknown>;
+  attachmentCount: number;
+  isRecurring: boolean;
+  seriesId: string | null;
 }
 
 export interface TaskRef {
@@ -111,6 +116,93 @@ export interface TaskDetail extends Task {
   isWatching: boolean;
   activity: Activity[];
   permissions: { edit: boolean; delete: boolean; createSubtasks: boolean };
+  recurrence: Recurrence | null;
+  previousOccurrence: { id: number; key: string } | null;
+  nextOccurrence: { id: number; key: string } | null;
+  attachments: Attachment[];
+  approvals: ApprovalRequest[];
+  /** The project requires an approved request before a task can be completed */
+  approvalRequired: boolean;
+}
+
+export type Frequency = "DAILY" | "WEEKLY" | "MONTHLY" | "YEARLY";
+export interface Recurrence {
+  id: string;
+  frequency: Frequency;
+  interval: number;
+  /** 0 = Monday … 6 = Sunday */
+  weekdays: number[];
+  monthDay: number | null;
+  endsOn: string | null;
+  maxOccurrences: number | null;
+  occurrences: number;
+  active: boolean;
+  summary: string;
+}
+
+export interface Attachment {
+  id: string;
+  fileName: string;
+  mimeType: string;
+  size: number;
+  createdAt: string;
+  uploadedBy: UserRef | null;
+}
+
+export type ApprovalState = "PENDING" | "APPROVED" | "REJECTED" | "CANCELLED";
+export interface ApprovalRequest {
+  id: string;
+  rule: "ANY" | "ALL";
+  status: ApprovalState;
+  note: string | null;
+  createdAt: string;
+  decidedAt: string | null;
+  consumedAt: string | null;
+  requestedBy: UserRef | null;
+  steps: { decision: "PENDING" | "APPROVED" | "REJECTED"; comment: string | null; decidedAt: string | null; approver: UserRef }[];
+}
+
+/** An approval as listed in the inbox, with its task */
+export interface ApprovalListItem extends ApprovalRequest {
+  task: { id: number; key: string; number: number; title: string; status: TaskStatus; dueDate: string | null; project: { id: string; key: string; name: string; color: string } };
+}
+
+export type CustomFieldType = "TEXT" | "NUMBER" | "DATE" | "SELECT" | "MULTI_SELECT" | "CHECKBOX" | "URL" | "USER";
+export const FIELD_TYPE_LABELS: Record<CustomFieldType, string> = {
+  TEXT: "Text",
+  NUMBER: "Number",
+  DATE: "Date",
+  SELECT: "Single select",
+  MULTI_SELECT: "Multi select",
+  CHECKBOX: "Checkbox",
+  URL: "Link",
+  USER: "Person",
+};
+export interface FieldOption {
+  id: string;
+  label: string;
+  color: string;
+}
+export interface CustomField {
+  id: string;
+  projectId: string;
+  name: string;
+  type: CustomFieldType;
+  options: FieldOption[] | null;
+  required: boolean;
+  description: string | null;
+  position: number;
+}
+
+export interface TemplateSummary {
+  id: string;
+  name: string;
+  description: string | null;
+  projectId: string | null;
+  subtaskCount: number;
+  checklistCount: number;
+  createdBy?: UserRef | null;
+  payload: { title: string; priority: Priority; dueInDays?: number | null; checklist: string[]; subtasks: { title: string }[] };
 }
 
 export interface TaskPage {
@@ -154,6 +246,7 @@ export interface Project {
   stats: ProjectStats;
   health: ProjectHealth;
   capabilities?: ProjectCapabilities;
+  completionApproval: "NONE" | "REQUIRED";
 }
 
 export interface Milestone {

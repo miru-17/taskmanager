@@ -37,6 +37,10 @@ export const makeTask = (o: Partial<Task> = {}): Task => {
     dependsOnIds: [],
     blockedBy: [],
     isBlocked: false,
+    customFields: {},
+    attachmentCount: 0,
+    isRecurring: false,
+    seriesId: null,
     ...o,
   };
 };
@@ -52,6 +56,12 @@ export const makeDetail = (o: Partial<TaskDetail> = {}): TaskDetail => ({
   isWatching: false,
   activity: [],
   permissions: { edit: true, delete: true, createSubtasks: true },
+  recurrence: null,
+  previousOccurrence: null,
+  nextOccurrence: null,
+  attachments: [],
+  approvals: [],
+  approvalRequired: false,
   ...o,
 });
 
@@ -71,6 +81,7 @@ export const makeProject = (o: Partial<Project> = {}): Project => ({
   team: null,
   stats: { total: 0, done: 0, open: 0, overdue: 0, progress: 0 },
   health: "on_track",
+  completionApproval: "NONE",
   capabilities: { projectId: "p1", manage: true, createTasks: true, editTasks: "any", deleteTasks: "any", projectRole: "MANAGER" },
   ...o,
 });

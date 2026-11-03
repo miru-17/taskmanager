@@ -1,6 +1,6 @@
 import { useState } from "react";
 import toast from "react-hot-toast";
-import { Ban, Bookmark, CheckSquare, GitBranch, Search, X } from "lucide-react";
+import { Ban, Bookmark, CheckSquare, GitBranch, Paperclip, Repeat, Search, X } from "lucide-react";
 import api from "../../services/api";
 import { useLabels, useOrgAction, useSavedViews } from "../../data/queries";
 import { dueLabel } from "../../data/dates";
@@ -29,6 +29,16 @@ export const TaskMeta = ({ task }: { task: Task }) => (
     {task.checklistTotal > 0 && (
       <span className="inline-flex items-center gap-1 text-xs text-muted" title="Checklist">
         <CheckSquare className="size-3" aria-hidden /> {task.checklistDone}/{task.checklistTotal}
+      </span>
+    )}
+    {task.isRecurring && (
+      <span className="inline-flex items-center text-xs text-muted" title="Repeats">
+        <Repeat className="size-3" aria-label="Repeats" />
+      </span>
+    )}
+    {task.attachmentCount > 0 && (
+      <span className="inline-flex items-center gap-1 text-xs text-muted" title="Files">
+        <Paperclip className="size-3" aria-hidden /> {task.attachmentCount}
       </span>
     )}
     {task.subtaskCount > 0 && (

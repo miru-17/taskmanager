@@ -23,7 +23,8 @@ export type Permission =
   | "projects:create"
   | "projects:manage_any"
   | "teams:manage"
-  | "labels:manage";
+  | "labels:manage"
+  | "templates:manage";
 
 export interface AuthUser {
   id: number;

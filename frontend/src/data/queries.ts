@@ -14,6 +14,9 @@ import type {
   TeamDetail,
   TeamSummary,
   LabelRef,
+  CustomField,
+  TemplateSummary,
+  ApprovalListItem,
 } from "../types/Task";
 import { useAuth } from "../context/AuthContext";
 
@@ -120,6 +123,7 @@ export type TaskInput = Partial<{
   actualHours: number | null;
   position: number;
   labelIds: string[];
+  customFields: Record<string, unknown>;
 }>;
 
 const onError = (fallback: string) => (err: unknown) => {
@@ -276,3 +280,55 @@ export const useSavedViews = (projectId?: string) => {
 };
 
 export const useOrgAction = useProjectAction;
+
+// ─── Phase 3b: fields, templates, approvals, files ───────────────────────────
+
+export const useFields = (projectId: string | undefined) => {
+  const org = useOrgKey();
+  return useQuery({
+    queryKey: ["org", org, "projects", "fields", projectId],
+    queryFn: async () => (await api.get<CustomField[]>(`/projects/${projectId}/fields`)).data,
+    enabled: Boolean(projectId),
+    staleTime: 60_000,
+  });
+};
+
+export const useTemplates = (projectId: string | undefined, enabled = true) => {
+  const org = useOrgKey();
+  return useQuery({
+    queryKey: ["org", org, "templates", projectId ?? "all"],
+    queryFn: async () => (await api.get<TemplateSummary[]>("/templates", { params: projectId ? { projectId } : {} })).data,
+    enabled,
+  });
+};
+
+export const useApprovals = (scope: "to-me" | "by-me") => {
+  const org = useOrgKey();
+  return useQuery({
+    queryKey: ["org", org, "tasks", "approvals", scope],
+    queryFn: async () => (await api.get<ApprovalListItem[]>("/approvals", { params: { scope } })).data,
+  });
+};
+
+/** Lives under the tasks key so every task write refreshes the badge too. */
+export const useApprovalCount = () => {
+  const org = useOrgKey();
+  const { can } = useAuth();
+  return useQuery({
+    queryKey: ["org", org, "tasks", "approvals", "count"],
+    queryFn: async () => (await api.get<{ pending: number }>("/approvals/count")).data.pending,
+    enabled: can("tasks:read"),
+    refetchInterval: 60_000,
+  });
+};
+
+export const useStorageUsage = (enabled: boolean) => {
+  const org = useOrgKey();
+  return useQuery({
+    queryKey: ["org", org, "tasks", "storage"],
+    queryFn: async () =>
+      (await api.get<{ usedBytes: number; files: number; quotaBytes: number; maxFileBytes: number; allowedExtensions: string[] }>("/attachments/usage")).data,
+    enabled,
+    staleTime: 60_000,
+  });
+};
