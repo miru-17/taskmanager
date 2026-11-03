@@ -389,3 +389,24 @@ export const useProjectFeed = (projectId: string) => {
     queryFn: async () => (await api.get<FeedItem[]>(`/projects/${projectId}/activity`, { params: { limit: 30 } })).data,
   });
 };
+
+// ─── Phase 5: analytics ──────────────────────────────────────────────────────
+
+export interface AnalyticsScope {
+  from: string;
+  to: string;
+  tz: string;
+  projectId?: string;
+  assigneeId?: string;
+}
+
+export const useAnalytics = <T,>(kind: "summary" | "trend" | "workload" | "projects", scope: AnalyticsScope) => {
+  const org = useOrgKey();
+  const params = Object.fromEntries(Object.entries(scope).filter(([, v]) => v)) as Record<string, string>;
+  return useQuery({
+    // Under "tasks" so live task changes refresh the dashboard too
+    queryKey: ["org", org, "tasks", "analytics", kind, params],
+    queryFn: async () => (await api.get<T>(`/analytics/${kind}`, { params })).data,
+    placeholderData: keepPreviousData,
+  });
+};

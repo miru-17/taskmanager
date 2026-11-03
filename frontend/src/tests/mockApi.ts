@@ -42,14 +42,14 @@ export const apiModule = {
   isSessionExpiry: () => false,
 };
 
-const WORKER: Permission[] = ["tasks:read", "tasks:create", "tasks:update_any", "tasks:delete_any", "labels:manage", "templates:manage"];
+const WORKER: Permission[] = ["tasks:read", "tasks:create", "tasks:update_any", "tasks:delete_any", "labels:manage", "templates:manage", "analytics:read"];
 const ROLE_PERMS: Record<OrgRole, Permission[]> = {
   ORG_ADMIN: ["org:read", "org:update", "members:read", "members:invite", "members:manage", "invitations:manage", "audit:read", "projects:create", "projects:manage_any", "teams:manage", ...WORKER],
   PROJECT_MANAGER: ["org:read", "members:read", "members:invite", "invitations:manage", "projects:create", "projects:manage_any", "teams:manage", ...WORKER],
   TEAM_LEAD: ["org:read", "members:read", ...WORKER],
-  MEMBER: ["org:read", "members:read", "tasks:read", "tasks:create", "tasks:update_own", "tasks:delete_own"],
+  MEMBER: ["org:read", "members:read", "tasks:read", "tasks:create", "tasks:update_own", "tasks:delete_own", "analytics:read"],
   CLIENT: ["org:read", "tasks:read"],
-  VIEWER: ["org:read", "members:read", "tasks:read"],
+  VIEWER: ["org:read", "members:read", "tasks:read", "analytics:read"],
 };
 
 export const makeSession = (role: OrgRole = "ORG_ADMIN", overrides: Partial<AuthPayload> = {}): AuthPayload => {

@@ -22,6 +22,10 @@
   --warning: #b45309;
   --success: #15803d;
   --info: #0369a1;
+  /* Chart series: validated categorical slots 1-2 (CVD and contrast checked per theme) */
+  --series-1: #2a78d6;
+  --series-2: #eb6834;
+  --grid: #e9ebef;
   --shadow: 0 1px 2px rgb(16 24 40 / 0.06), 0 1px 3px rgb(16 24 40 / 0.08);
   --shadow-lg: 0 12px 32px rgb(16 24 40 / 0.14);
   color-scheme: light;
@@ -44,6 +48,9 @@
   --warning: #fbbf24;
   --success: #4ade80;
   --info: #38bdf8;
+  --series-1: #3987e5;
+  --series-2: #d95926;
+  --grid: #222733;
   --shadow: 0 1px 2px rgb(0 0 0 / 0.4);
   --shadow-lg: 0 16px 40px rgb(0 0 0 / 0.5);
   color-scheme: dark;
@@ -67,6 +74,9 @@
   --color-warning: var(--warning);
   --color-success: var(--success);
   --color-info: var(--info);
+  --color-series-1: var(--series-1);
+  --color-series-2: var(--series-2);
+  --color-grid: var(--grid);
   --shadow-card: var(--shadow);
   --shadow-pop: var(--shadow-lg);
 }
@@ -105,5 +115,46 @@ body {
   *::after {
     animation-duration: 0.01ms !important;
     transition-duration: 0.01ms !important;
+  }
+}
+
+/* Printing a report (browser "Save as PDF"): only the report, on white, no app chrome */
+@media print {
+  @page {
+    margin: 14mm;
+  }
+  /* Paper is white: print always uses the light theme, even from dark mode */
+  :root,
+  :root[data-theme="dark"] {
+    --app: #ffffff;
+    --surface: #ffffff;
+    --elev: #f1f3f6;
+    --elev-2: #e6e9ef;
+    --line: #d5d9e0;
+    --fg: #12151b;
+    --fg-soft: #343a46;
+    --muted: #5b6170;
+    --series-1: #2a78d6;
+    --series-2: #eb6834;
+    --grid: #e3e6eb;
+    color-scheme: light;
+  }
+  aside,
+  nav[aria-label="Main"],
+  .no-print {
+    display: none !important;
+  }
+  main {
+    overflow: visible !important;
+  }
+  .h-dvh {
+    height: auto !important;
+    overflow: visible !important;
+  }
+  .print-avoid-break {
+    break-inside: avoid;
+  }
+  .shadow-card {
+    box-shadow: none !important;
   }
 }

@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { NavLink, Outlet, useLocation, useNavigate } from "react-router-dom";
 import toast from "react-hot-toast";
-import { BadgeCheck, BellRing, Building2, ChevronsUpDown, FolderKanban, ListChecks, LogOut, Menu, Moon, Plus, Shield, Sun, Users, X } from "lucide-react";
+import { BadgeCheck, BarChart3, BellRing, Building2, ChevronsUpDown, FolderKanban, ListChecks, LogOut, Menu, Moon, Plus, Shield, Sun, Users, X } from "lucide-react";
 import { useAuth } from "../../context/AuthContext";
 import { useTheme } from "../../context/ThemeContext";
 import { useApprovalCount, useProjects } from "../../data/queries";
@@ -104,6 +104,11 @@ const Sidebar = ({ onNavigate, live }: { onNavigate?: () => void; live: LiveStat
       <NavLink to="/projects" end className={navItem}>
         <FolderKanban className="size-4" aria-hidden /> Projects
       </NavLink>
+      {can("analytics:read") && (
+        <NavLink to="/analytics" className={navItem}>
+          <BarChart3 className="size-4" aria-hidden /> Analytics
+        </NavLink>
+      )}
       {!isClient && (
         <NavLink to="/teams" className={navItem}>
           <Users className="size-4" aria-hidden /> Teams

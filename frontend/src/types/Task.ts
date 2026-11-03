@@ -359,3 +359,56 @@ export interface AppNotification {
 export type FeedItem =
   | { kind: "activity"; id: string; type: string; changes: Record<string, unknown> | null; createdAt: string; actor: UserRef | null; task: { id: number; key: string; title: string } }
   | { kind: "comment"; id: string; excerpt: string; createdAt: string; actor: UserRef | null; task: { id: number; key: string; title: string } };
+
+// ─── Phase 5: analytics ──────────────────────────────────────────────────────
+
+export interface AnalyticsRange {
+  from: string;
+  to: string;
+  tz: string;
+  days: number;
+}
+export interface AnalyticsSummary {
+  range: AnalyticsRange;
+  open: number;
+  overdue: number;
+  created: number;
+  completed: number;
+  cycleTime: { averageDays: number | null; medianDays: number | null; sample: number };
+  onTime: { rate: number | null; onTime: number; withDueDate: number };
+  hours: { estimated: number; actual: number; sample: number };
+  byStatus: { key: TaskStatus; count: number }[];
+  byPriority: { key: Priority; count: number }[];
+}
+export interface TrendPoint {
+  start: string;
+  created: number;
+  completed: number;
+  scope: number;
+  done: number;
+  remaining: number;
+}
+export interface AnalyticsTrend {
+  range: AnalyticsRange;
+  bucket: "day" | "week";
+  points: TrendPoint[];
+}
+export interface WorkloadRow {
+  user: { id: number; name: string | null; email: string } | null;
+  open: number;
+  overdue: number;
+  dueSoon: number;
+  openHours: number;
+  unestimated: number;
+  completed: number;
+}
+export interface ProjectAnalytics {
+  id: string;
+  key: string;
+  name: string;
+  color: string;
+  status: ProjectStatus;
+  stats: ProjectStats;
+  completedInRange: number;
+  health: ProjectHealth;
+}

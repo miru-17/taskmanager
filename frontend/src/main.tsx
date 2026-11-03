@@ -21,6 +21,7 @@ createRoot(document.getElementById("root")!).render(
         <AuthProvider>
           <Toaster
             position="bottom-right"
+            containerClassName="no-print"
             toastOptions={{
               duration: 3500,
               style: {

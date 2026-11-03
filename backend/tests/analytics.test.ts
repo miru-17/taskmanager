@@ -236,6 +236,18 @@ describe("Analytics access", () => {
     expect((await get(viewer, "/analytics/summary")).status).toBe(200);
   });
 
+  it("accepts the legacy zone names browsers send (Chrome reports India as Asia/Calcutta)", async () => {
+    const { admin } = await seed();
+    const to = localDay(new Date(), "Asia/Kolkata");
+    const q = { from: addDays(to, -29), to };
+    const legacy = await get(admin, "/analytics/summary", { ...q, tz: "Asia/Calcutta" }).expect(200);
+    const current = await get(admin, "/analytics/summary", { ...q, tz: "Asia/Kolkata" }).expect(200);
+    expect(legacy.body).toEqual(current.body); // answered in the current name, Asia/Kolkata
+    for (const path of ["/analytics/trend", "/analytics/workload", "/analytics/projects", "/analytics/export.csv"]) {
+      expect((await get(admin, path, { ...q, tz: "Asia/Calcutta" })).status).toBe(200);
+    }
+  });
+
   it("validates the range and time zone", async () => {
     const admin = await signUp();
     expect((await get(admin, "/analytics/summary", { tz: "Mars/Olympus" })).status).toBe(400);
