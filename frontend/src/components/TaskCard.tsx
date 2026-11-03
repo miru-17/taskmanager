@@ -4,12 +4,17 @@ interface TaskCardProps {
   task: Task;
   onEdit: (task: Task) => void;
   onDelete: (id: number) => void;
+  onStatusChange: (
+    id: number,
+    status: "TODO" | "IN_PROGRESS" | "DONE"
+  ) => void;
 }
 
 const TaskCard = ({
   task,
   onEdit,
   onDelete,
+  onStatusChange,
 }: TaskCardProps) => {
   const statusColor = () => {
     switch (task.status) {
@@ -52,12 +57,11 @@ const TaskCard = ({
       hover:scale-[1.02]
     "
     >
-      {/* Glow Line */}
+      {/* Top Glow Line */}
       <div className="absolute top-0 left-0 h-1 w-full bg-gradient-to-r from-cyan-400 via-blue-500 to-purple-500" />
 
       {/* Title */}
       <div className="flex justify-between items-center">
-
         <h2 className="text-2xl font-bold text-white">
           {task.title}
         </h2>
@@ -67,21 +71,51 @@ const TaskCard = ({
         >
           {task.status.replace("_", " ")}
         </span>
-
       </div>
 
       {/* Description */}
-
       <p className="text-slate-400 mt-5 leading-7">
         {task.description || "No Description"}
       </p>
 
+      {/* Status Dropdown */}
+      <div className="mt-6">
+        <label className="block text-sm text-slate-400 mb-2">
+          Status
+        </label>
+
+        <select
+  value={task.status}
+  onChange={(e) => {
+    e.stopPropagation();
+
+    onStatusChange(
+      task.id,
+      e.target.value as "TODO" | "IN_PROGRESS" | "DONE"
+    );
+  }}
+          className="
+            w-full
+            bg-slate-800
+            border
+            border-slate-700
+            rounded-xl
+            p-3
+            text-white
+            focus:outline-none
+            focus:ring-2
+            focus:ring-cyan-500
+          "
+        >
+          <option value="TODO">TODO</option>
+          <option value="IN_PROGRESS">IN PROGRESS</option>
+          <option value="DONE">DONE</option>
+        </select>
+      </div>
+
       {/* Footer */}
-
       <div className="mt-8 flex justify-between items-center">
-
         <div>
-
           <p className="text-slate-500 text-sm">
             Due Date
           </p>
@@ -89,26 +123,24 @@ const TaskCard = ({
           <h4 className="text-cyan-300 font-semibold mt-1">
             📅 {formattedDate}
           </h4>
-
         </div>
 
         <div className="flex gap-3">
-
           <button
             onClick={() => onEdit(task)}
             className="
-            px-5
-            py-2.5
-            rounded-xl
-            bg-gradient-to-r
-            from-blue-600
-            to-cyan-500
-            text-white
-            font-semibold
-            shadow-lg
-            hover:scale-105
-            transition-all
-          "
+              px-5
+              py-2.5
+              rounded-xl
+              bg-gradient-to-r
+              from-blue-600
+              to-cyan-500
+              text-white
+              font-semibold
+              shadow-lg
+              hover:scale-105
+              transition-all
+            "
           >
             ✏ Edit
           </button>
@@ -116,26 +148,23 @@ const TaskCard = ({
           <button
             onClick={() => onDelete(task.id)}
             className="
-            px-5
-            py-2.5
-            rounded-xl
-            bg-gradient-to-r
-            from-red-500
-            to-pink-600
-            text-white
-            font-semibold
-            shadow-lg
-            hover:scale-105
-            transition-all
-          "
+              px-5
+              py-2.5
+              rounded-xl
+              bg-gradient-to-r
+              from-red-500
+              to-pink-600
+              text-white
+              font-semibold
+              shadow-lg
+              hover:scale-105
+              transition-all
+            "
           >
             🗑 Delete
           </button>
-
         </div>
-
       </div>
-
     </div>
   );
 };
