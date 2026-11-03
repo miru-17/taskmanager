@@ -37,7 +37,19 @@ export type AuditAction =
   | "team.updated"
   | "team.deleted"
   | "team.member_set"
-  | "team.member_removed";
+  | "team.member_removed"
+  | "custom_field.created"
+  | "custom_field.updated"
+  | "custom_field.deleted"
+  | "template.created"
+  | "template.updated"
+  | "template.deleted"
+  | "attachment.uploaded"
+  | "attachment.deleted"
+  | "approval.requested"
+  | "approval.decided"
+  | "approval.cancelled"
+  | "project.approval_policy_changed";
 
 interface AuditEntry {
   action: AuditAction;

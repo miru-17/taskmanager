@@ -29,20 +29,24 @@ model User {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  memberships        Membership[]
-  sessions           Session[]
-  tokens             UserToken[]
-  tasksCreated       Task[]        @relation("TaskCreator")
-  invitationsSent    Invitation[]  @relation("InvitationInviter")
-  auditLogs          AuditLog[]
+  memberships     Membership[]
+  sessions        Session[]
+  tokens          UserToken[]
+  tasksCreated    Task[]       @relation("TaskCreator")
+  invitationsSent Invitation[] @relation("InvitationInviter")
+  auditLogs       AuditLog[]
 
   teamMemberships    TeamMember[]
   projectMemberships ProjectMember[]
-  projectsOwned      Project[]      @relation("ProjectOwner")
-  tasksAssigned      Task[]         @relation("TaskAssignee")
+  projectsOwned      Project[]         @relation("ProjectOwner")
+  tasksAssigned      Task[]            @relation("TaskAssignee")
   watching           TaskWatcher[]
   taskActivities     TaskActivity[]
   savedViews         SavedView[]
+  templatesCreated   TaskTemplate[]
+  attachments        Attachment[]
+  approvalsRequested ApprovalRequest[] @relation("ApprovalRequester")
+  approvalSteps      ApprovalStep[]
 }
 
 /// One row per signed-in device. The refresh token itself is never stored, only its SHA-256.
@@ -107,6 +111,8 @@ model Organization {
   projects    Project[]
   labels      Label[]
   savedViews  SavedView[]
+  templates   TaskTemplate[]
+  attachments Attachment[]
 }
 
 enum OrgRole {
@@ -243,29 +249,34 @@ model TeamMember {
 }
 
 model Project {
-  id             String            @id @default(cuid())
-  organizationId String
-  key            String // short uppercase prefix for task numbers, e.g. "WEB" → WEB-12
-  name           String
-  description    String?
-  status         ProjectStatus     @default(ACTIVE)
-  visibility     ProjectVisibility @default(ORGANIZATION)
-  color          String            @default("#6366f1")
-  startDate      DateTime?
-  dueDate        DateTime?
-  ownerId        Int?
-  teamId         String?
-  taskCounter    Int               @default(0)
-  createdAt      DateTime          @default(now())
-  updatedAt      DateTime          @updatedAt
+  id                 String             @id @default(cuid())
+  organizationId     String
+  key                String // short uppercase prefix for task numbers, e.g. "WEB" → WEB-12
+  name               String
+  description        String?
+  status             ProjectStatus      @default(ACTIVE)
+  visibility         ProjectVisibility  @default(ORGANIZATION)
+  color              String             @default("#6366f1")
+  startDate          DateTime?
+  dueDate            DateTime?
+  ownerId            Int?
+  teamId             String?
+  taskCounter        Int                @default(0)
+  /// When REQUIRED, a task can only reach DONE through an approved approval request
+  completionApproval ApprovalPolicyMode @default(NONE)
+  createdAt          DateTime           @default(now())
+  updatedAt          DateTime           @updatedAt
 
-  organization Organization    @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  owner        User?           @relation("ProjectOwner", fields: [ownerId], references: [id], onDelete: SetNull)
-  team         Team?           @relation(fields: [teamId], references: [id], onDelete: SetNull)
+  organization Organization       @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  owner        User?              @relation("ProjectOwner", fields: [ownerId], references: [id], onDelete: SetNull)
+  team         Team?              @relation(fields: [teamId], references: [id], onDelete: SetNull)
   members      ProjectMember[]
   milestones   Milestone[]
   tasks        Task[]
   savedViews   SavedView[]
+  customFields CustomField[]
+  templates    TaskTemplate[]
+  series       RecurrenceSeries[]
 
   @@unique([organizationId, key])
   @@index([organizationId, status])
@@ -302,17 +313,17 @@ model Milestone {
 }
 
 model Task {
-  id          Int       @id @default(autoincrement())
-  number      Int // per-project sequence → "<KEY>-<number>"
-  title       String
-  description String?
-  status      Status    @default(TODO)
-  priority    Priority  @default(MEDIUM)
-  startDate   DateTime?
-  dueDate     DateTime?
+  id            Int       @id @default(autoincrement())
+  number        Int // per-project sequence → "<KEY>-<number>"
+  title         String
+  description   String?
+  status        Status    @default(TODO)
+  priority      Priority  @default(MEDIUM)
+  startDate     DateTime?
+  dueDate       DateTime?
   estimateHours Float?
   actualHours   Float?
-  position    Float     @default(0) // ordering within a status column
+  position      Float     @default(0) // ordering within a status column
 
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
@@ -320,33 +331,43 @@ model Task {
   archivedAt  DateTime?
   deletedAt   DateTime? // soft delete
 
-  organizationId String
-  projectId      String
-  createdById    Int?
-  assigneeId     Int?
-  parentId       Int?
-  milestoneId    String?
+  organizationId       String
+  projectId            String
+  createdById          Int?
+  assigneeId           Int?
+  parentId             Int?
+  milestoneId          String?
+  seriesId             String?
+  /// The occurrence this one was generated from. Unique: one successor per occurrence, even under races.
+  previousOccurrenceId Int?    @unique
 
-  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  project      Project      @relation(fields: [projectId], references: [id], onDelete: Cascade)
-  createdBy    User?        @relation("TaskCreator", fields: [createdById], references: [id], onDelete: SetNull)
-  assignee     User?        @relation("TaskAssignee", fields: [assigneeId], references: [id], onDelete: SetNull)
-  parent       Task?        @relation("Subtasks", fields: [parentId], references: [id], onDelete: Cascade)
-  subtasks     Task[]       @relation("Subtasks")
-  milestone    Milestone?   @relation(fields: [milestoneId], references: [id], onDelete: SetNull)
+  organization       Organization      @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  project            Project           @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  createdBy          User?             @relation("TaskCreator", fields: [createdById], references: [id], onDelete: SetNull)
+  assignee           User?             @relation("TaskAssignee", fields: [assigneeId], references: [id], onDelete: SetNull)
+  parent             Task?             @relation("Subtasks", fields: [parentId], references: [id], onDelete: Cascade)
+  subtasks           Task[]            @relation("Subtasks")
+  milestone          Milestone?        @relation(fields: [milestoneId], references: [id], onDelete: SetNull)
+  series             RecurrenceSeries? @relation(fields: [seriesId], references: [id], onDelete: SetNull)
+  previousOccurrence Task?             @relation("Recurrence", fields: [previousOccurrenceId], references: [id], onDelete: SetNull)
+  nextOccurrence     Task?             @relation("Recurrence")
 
   labels      TaskLabel[]
   checklist   ChecklistItem[]
-  dependsOn   TaskDependency[] @relation("DependentTask")
-  blocks      TaskDependency[] @relation("BlockingTask")
+  dependsOn   TaskDependency[]  @relation("DependentTask")
+  blocks      TaskDependency[]  @relation("BlockingTask")
   watchers    TaskWatcher[]
   activities  TaskActivity[]
+  fieldValues TaskFieldValue[]
+  attachments Attachment[]
+  approvals   ApprovalRequest[]
 
   @@unique([projectId, number])
   @@index([organizationId, createdAt])
   @@index([projectId, status, position])
   @@index([assigneeId])
   @@index([createdById])
+  @@index([seriesId])
   @@index([parentId])
 }
 
@@ -447,4 +468,181 @@ model SavedView {
 
   @@index([organizationId, userId])
   @@index([projectId])
+}
+
+// ─── Phase 3b ────────────────────────────────────────────────────────────────
+
+enum CustomFieldType {
+  TEXT
+  NUMBER
+  DATE
+  SELECT
+  MULTI_SELECT
+  CHECKBOX
+  URL
+  USER
+}
+
+/// A typed field defined per project. SELECT/MULTI_SELECT keep their choices in `options`.
+model CustomField {
+  id          String          @id @default(cuid())
+  projectId   String
+  name        String
+  type        CustomFieldType
+  /// [{ "id": "opt_x", "label": "High", "color": "#ef4444" }] for select types
+  options     Json?
+  required    Boolean         @default(false)
+  description String?
+  position    Float           @default(0)
+  createdAt   DateTime        @default(now())
+  updatedAt   DateTime        @updatedAt
+
+  project Project          @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  values  TaskFieldValue[]
+
+  @@unique([projectId, name])
+}
+
+model TaskFieldValue {
+  taskId    Int
+  fieldId   String
+  /// Typed by the field: string | number | boolean | string[] | ISO date | user id
+  value     Json
+  updatedAt DateTime @updatedAt
+
+  task  Task        @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  field CustomField @relation(fields: [fieldId], references: [id], onDelete: Cascade)
+
+  @@id([taskId, fieldId])
+  @@index([fieldId])
+}
+
+/// A reusable task blueprint: fields, checklist and subtasks in `payload`.
+model TaskTemplate {
+  id             String   @id @default(cuid())
+  organizationId String
+  /// null = available in every project of the organization
+  projectId      String?
+  name           String
+  description    String?
+  payload        Json
+  createdById    Int?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  project      Project?     @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  createdBy    User?        @relation(fields: [createdById], references: [id], onDelete: SetNull)
+
+  @@index([organizationId, projectId])
+}
+
+enum RecurrenceFrequency {
+  DAILY
+  WEEKLY
+  MONTHLY
+  YEARLY
+}
+
+/// A repeating task. The next occurrence is created when the current one is completed.
+model RecurrenceSeries {
+  id             String              @id @default(cuid())
+  projectId      String
+  frequency      RecurrenceFrequency
+  interval       Int                 @default(1)
+  /// 0 = Monday … 6 = Sunday (WEEKLY only)
+  weekdays       Int[]
+  /// Day of month the series is anchored to (MONTHLY/YEARLY); clamped to short months
+  monthDay       Int?
+  endsOn         DateTime?
+  maxOccurrences Int?
+  occurrences    Int                 @default(1)
+  active         Boolean             @default(true)
+  createdById    Int?
+  createdAt      DateTime            @default(now())
+  updatedAt      DateTime            @updatedAt
+
+  project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  tasks   Task[]
+
+  @@index([projectId])
+}
+
+model Attachment {
+  id             String   @id @default(cuid())
+  organizationId String
+  taskId         Int
+  uploadedById   Int?
+  fileName       String
+  mimeType       String
+  size           Int
+  /// Random, server-generated; never derived from the file name
+  storageKey     String   @unique
+  sha256         String
+  createdAt      DateTime @default(now())
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  task         Task         @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  uploadedBy   User?        @relation(fields: [uploadedById], references: [id], onDelete: SetNull)
+
+  @@index([taskId])
+  @@index([organizationId])
+}
+
+enum ApprovalPolicyMode {
+  NONE
+  REQUIRED
+}
+
+enum ApprovalRule {
+  ANY
+  ALL
+}
+
+enum ApprovalStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  CANCELLED
+}
+
+enum ApprovalDecision {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+model ApprovalRequest {
+  id            String         @id @default(cuid())
+  taskId        Int
+  requestedById Int?
+  rule          ApprovalRule   @default(ANY)
+  status        ApprovalStatus @default(PENDING)
+  note          String?
+  decidedAt     DateTime?
+  /// Set when an approved request is used to complete the task; reopening then needs a new approval
+  consumedAt    DateTime?
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+
+  task        Task           @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  requestedBy User?          @relation("ApprovalRequester", fields: [requestedById], references: [id], onDelete: SetNull)
+  steps       ApprovalStep[]
+
+  @@index([taskId, status])
+}
+
+model ApprovalStep {
+  id         String           @id @default(cuid())
+  requestId  String
+  approverId Int
+  decision   ApprovalDecision @default(PENDING)
+  comment    String?
+  decidedAt  DateTime?
+
+  request  ApprovalRequest @relation(fields: [requestId], references: [id], onDelete: Cascade)
+  approver User            @relation(fields: [approverId], references: [id], onDelete: Cascade)
+
+  @@unique([requestId, approverId])
+  @@index([approverId, decision])
 }

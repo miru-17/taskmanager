@@ -8,3 +8,6 @@ coverage
 !.env.example
 
 /generated/prisma
+
+# Uploaded attachments (user data, never commit)
+storage/

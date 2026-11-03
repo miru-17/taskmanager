@@ -5,6 +5,7 @@ import { badRequest, conflict, forbidden, notFound } from "../../core/errors";
 import { audit } from "../../core/audit";
 import { hasPermission } from "../../core/rbac";
 import { assertOrgMember, projectAccessWhere, resolveProjectAccess, type Actor } from "../../core/access";
+import { removeStoredFiles, storageKeysForProject } from "../attachments/attachments.service";
 import type { CreateProjectInput, MilestoneInput, UpdateProjectInput } from "./projects.schemas";
 
 const DAY_MS = 86_400_000;
@@ -103,6 +104,7 @@ const projectSelect = {
   updatedAt: true,
   owner: { select: { id: true, email: true, name: true } },
   team: { select: { id: true, name: true } },
+  completionApproval: true,
   _count: { select: { members: true, milestones: true } },
 } as const;
 
@@ -194,6 +196,9 @@ export const updateProject = async (req: Request, actor: Actor, projectId: strin
   );
 
   await prisma.project.update({ where: { id: projectId }, data: input });
+  if (input.completionApproval && input.completionApproval !== current.completionApproval) {
+    await audit(req, { action: "project.approval_policy_changed", organizationId, targetType: "project", targetId: projectId, metadata: { from: current.completionApproval, to: input.completionApproval } });
+  }
   await audit(req, {
     action: input.status === "ARCHIVED" ? "project.archived" : "project.updated",
     organizationId,
@@ -211,7 +216,10 @@ export const deleteProject = async (req: Request, actor: Actor, projectId: strin
   const project = await prisma.project.findUniqueOrThrow({ where: { id: projectId } });
   if (project.status !== "ARCHIVED") throw badRequest("Archive the project before deleting it");
 
+  // Database rows cascade; stored files are removed once the delete has committed
+  const fileKeys = await storageKeysForProject(projectId);
   await prisma.project.delete({ where: { id: projectId } });
+  await removeStoredFiles(fileKeys);
   await audit(req, { action: "project.deleted", organizationId: actor.tenant.organizationId, targetType: "project", targetId: projectId, metadata: { key: project.key, name: project.name } });
 };
 

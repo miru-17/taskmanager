@@ -25,11 +25,12 @@ export const PERMISSIONS = [
   "projects:manage_any", // edit/archive any project and its members/milestones
   "teams:manage",
   "labels:manage",
+  "templates:manage", // create/edit/delete task templates (using one only needs tasks:create)
 ] as const;
 
 export type Permission = (typeof PERMISSIONS)[number];
 
-const TASK_WORKER: Permission[] = ["tasks:read", "tasks:create", "tasks:update_any", "tasks:delete_any", "labels:manage"];
+const TASK_WORKER: Permission[] = ["tasks:read", "tasks:create", "tasks:update_any", "tasks:delete_any", "labels:manage", "templates:manage"];
 
 export const ROLE_PERMISSIONS: Record<OrgRole, readonly Permission[]> = {
   ORG_ADMIN: PERMISSIONS,

@@ -11,6 +11,10 @@ import { adminRouter } from "./modules/admin/admin.routes";
 import { projectsRouter } from "./modules/projects/projects.routes";
 import { teamsRouter } from "./modules/teams/teams.routes";
 import { labelsRouter, viewsRouter } from "./modules/labels/labels.routes";
+import { fieldsRouter } from "./modules/fields/fields.routes";
+import { templatesRouter } from "./modules/templates/templates.routes";
+import { attachmentsRouter } from "./modules/attachments/attachments.routes";
+import { approvalsRouter } from "./modules/approvals/approvals.routes";
 
 export const createApp = () => {
   const app = express();
@@ -42,10 +46,14 @@ export const createApp = () => {
   app.use("/orgs", orgsRouter);
   app.use("/invitations", invitationsRouter);
   app.use("/tasks", tasksRouter);
+  app.use("/projects/:projectId/fields", fieldsRouter);
   app.use("/projects", projectsRouter);
   app.use("/teams", teamsRouter);
   app.use("/labels", labelsRouter);
   app.use("/views", viewsRouter);
+  app.use("/templates", templatesRouter);
+  app.use("/attachments", attachmentsRouter);
+  app.use("/approvals", approvalsRouter);
   app.use("/admin", adminRouter);
 
   app.use(notFoundHandler);

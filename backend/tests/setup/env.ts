@@ -21,3 +21,6 @@ process.env.DATABASE_URL = testUrl;
 process.env.JWT_SECRET = "test-secret-that-is-long-enough-for-hs256";
 process.env.FRONTEND_URL = "http://localhost:5173";
 process.env.AUTH_RATE_LIMIT_MAX ??= "1000";
+// Attachments go to a throwaway folder per test run, never the real upload directory
+process.env.UPLOAD_DIR = require("node:path").join(require("node:os").tmpdir(), `taskforge-test-uploads-${process.pid}`);
+process.env.MAX_UPLOAD_MB ??= "1";

@@ -36,6 +36,8 @@ const fields = {
   actualHours: hours,
   position: z.number().finite(),
   labelIds: z.array(cuidSchema).max(20, "At most 20 labels per task"),
+  /** { fieldId: value | null } — each value is validated against its field's type on the server */
+  customFields: z.record(cuidSchema, z.unknown()).refine((r) => Object.keys(r).length <= 50, "Too many custom fields"),
 };
 
 export const createTaskBody = z.object({
@@ -53,6 +55,7 @@ export const createTaskBody = z.object({
   estimateHours: fields.estimateHours.optional(),
   actualHours: fields.actualHours.optional(),
   labelIds: fields.labelIds.optional(),
+  customFields: fields.customFields.optional(),
 });
 
 export const updateTaskBody = z
@@ -70,6 +73,7 @@ export const updateTaskBody = z
     actualHours: fields.actualHours.optional(),
     position: fields.position.optional(),
     labelIds: fields.labelIds.optional(),
+    customFields: fields.customFields.optional(),
   })
   .refine((b) => Object.values(b).some((v) => v !== undefined), { message: "Provide at least one field to update" });
 

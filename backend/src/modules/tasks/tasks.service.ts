@@ -13,6 +13,9 @@ import {
   type ProjectCapabilities,
 } from "../../core/access";
 import type { BulkInput, CreateTaskInput, ListTasksQuery, UpdateTaskInput } from "./tasks.schemas";
+import { afterCompletion, assertCanComplete, insertTask, logActivity, nextPosition } from "./lifecycle";
+import { writeFieldValues } from "../fields/fields.service";
+import { describeRule } from "../recurrence/schedule";
 
 export type { Actor } from "../../core/access";
 
@@ -63,13 +66,18 @@ const listSelect = {
   labels: { select: { label: { select: { id: true, name: true, color: true } } } },
   checklist: { select: { done: true } },
   dependsOn: { where: { dependsOn: { deletedAt: null } }, select: { dependsOnId: true, dependsOn: { select: { status: true } } } },
-  _count: { select: { subtasks: { where: { deletedAt: null } } } },
+  seriesId: true,
+  fieldValues: { select: { fieldId: true, value: true } },
+  _count: { select: { subtasks: { where: { deletedAt: null } }, attachments: true } },
 } satisfies Prisma.TaskSelect;
 
 type ListRow = Prisma.TaskGetPayload<{ select: typeof listSelect }>;
 
-const toListItem = ({ labels, checklist, dependsOn, _count, ...t }: ListRow) => ({
+const toListItem = ({ labels, checklist, dependsOn, _count, fieldValues, ...t }: ListRow) => ({
   ...t,
+  customFields: Object.fromEntries(fieldValues.map((v) => [v.fieldId, v.value])),
+  attachmentCount: _count.attachments,
+  isRecurring: t.seriesId !== null,
   key: `${t.project.key}-${t.number}`,
   labels: labels.map((l) => l.label),
   checklistTotal: checklist.length,
@@ -82,14 +90,14 @@ const toListItem = ({ labels, checklist, dependsOn, _count, ...t }: ListRow) => 
 });
 
 /** Tasks the actor may see: not deleted, in a project they can access. */
-const visibleTasks = (actor: Actor): Prisma.TaskWhereInput => ({
+export const visibleTasks = (actor: Actor): Prisma.TaskWhereInput => ({
   organizationId: actor.tenant.organizationId,
   deletedAt: null,
   project: projectAccessWhere(actor),
 });
 
 /** Same 404 for "doesn't exist", "other tenant", "private project" and "deleted". */
-const findVisible = async (actor: Actor, id: number, db: Db = prisma) => {
+export const findVisible = async (actor: Actor, id: number, db: Db = prisma) => {
   const task = await db.task.findFirst({ where: { id, ...visibleTasks(actor) }, select: listSelect });
   if (!task) throw notFound("Task not found");
   return task;
@@ -98,7 +106,7 @@ const findVisible = async (actor: Actor, id: number, db: Db = prisma) => {
 // ─── Validation of references (all must live in the same org / project) ──────
 
 /** The assignee must be an org member who can actually see this project. */
-const assertAssignable = async (actor: Actor, projectId: string, userId: number) => {
+export const assertAssignable = async (actor: Actor, projectId: string, userId: number) => {
   const membership = await assertOrgMember(actor.tenant.organizationId, userId, "Assignee");
   const assigneeActor: Actor = { userId, tenant: { organizationId: actor.tenant.organizationId, role: membership.role } };
   const visible = await prisma.project.count({ where: { id: projectId, ...projectAccessWhere(assigneeActor) } });
@@ -110,7 +118,7 @@ const assertMilestone = async (projectId: string, milestoneId: string) => {
   if (!m) throw badRequest("Milestone does not belong to this project");
 };
 
-const assertLabels = async (organizationId: string, labelIds: string[]) => {
+export const assertLabels = async (organizationId: string, labelIds: string[]) => {
   const unique = [...new Set(labelIds)];
   const count = await prisma.label.count({ where: { id: { in: unique }, organizationId } });
   if (count !== unique.length) throw badRequest("One or more labels don't exist");
@@ -180,14 +188,6 @@ const assertNotBlocked = async (db: Db, taskId: number) => {
     throw new AppError(409, "TASK_BLOCKED", `This task is blocked by ${keys.join(", ")}. Finish those first.`, { blockedBy: keys });
   }
 };
-
-const nextPosition = async (db: Db, projectId: string, status: Status) => {
-  const last = await db.task.aggregate({ where: { projectId, status, deletedAt: null }, _max: { position: true } });
-  return (last._max.position ?? 0) + POSITION_GAP;
-};
-
-const logActivity = (db: Db, taskId: number, actorId: number, type: string, changes?: Prisma.InputJsonValue) =>
-  db.taskActivity.create({ data: { taskId, actorId, type, changes } });
 
 /** JSON-safe value for history */
 const plain = (v: unknown) => (v instanceof Date ? v.toISOString() : (v ?? null));
@@ -281,6 +281,29 @@ export const getTask = async (actor: Actor, id: number) => {
           take: 50,
           select: { id: true, type: true, changes: true, createdAt: true, actor: { select: userSelect } },
         },
+        series: true,
+        previousOccurrence: { select: { id: true, number: true, deletedAt: true } },
+        nextOccurrence: { select: { id: true, number: true, deletedAt: true } },
+        attachments: {
+          orderBy: { createdAt: "desc" },
+          select: { id: true, fileName: true, mimeType: true, size: true, createdAt: true, uploadedBy: { select: userSelect } },
+        },
+        approvals: {
+          orderBy: { createdAt: "desc" },
+          take: 10,
+          select: {
+            id: true,
+            rule: true,
+            status: true,
+            note: true,
+            createdAt: true,
+            decidedAt: true,
+            consumedAt: true,
+            requestedBy: { select: userSelect },
+            steps: { select: { decision: true, comment: true, decidedAt: true, approver: { select: userSelect } } },
+          },
+        },
+        project: { select: { completionApproval: true } },
       },
     }),
     prisma.task.findMany({
@@ -309,6 +332,25 @@ export const getTask = async (actor: Actor, id: number) => {
     watchers: detail.watchers.map((w) => w.user),
     isWatching: detail.watchers.some((w) => w.user.id === actor.userId),
     activity: detail.activities,
+    recurrence: detail.series
+      ? {
+          id: detail.series.id,
+          frequency: detail.series.frequency,
+          interval: detail.series.interval,
+          weekdays: detail.series.weekdays,
+          monthDay: detail.series.monthDay,
+          endsOn: detail.series.endsOn,
+          maxOccurrences: detail.series.maxOccurrences,
+          occurrences: detail.series.occurrences,
+          active: detail.series.active,
+          summary: describeRule(detail.series),
+        }
+      : null,
+    previousOccurrence: detail.previousOccurrence && !detail.previousOccurrence.deletedAt ? { id: detail.previousOccurrence.id, key: `${base.project.key}-${detail.previousOccurrence.number}` } : null,
+    nextOccurrence: detail.nextOccurrence && !detail.nextOccurrence.deletedAt ? { id: detail.nextOccurrence.id, key: `${base.project.key}-${detail.nextOccurrence.number}` } : null,
+    attachments: detail.attachments,
+    approvals: detail.approvals,
+    approvalRequired: detail.project.completionApproval === "REQUIRED",
     permissions: {
       edit: canTouchTask(caps, actor, base, "edit"),
       delete: canTouchTask(caps, actor, base, "delete"),
@@ -339,7 +381,7 @@ const defaultProjectId = async (actor: Actor) => {
   return project.id;
 };
 
-const assertProjectWritable = async (projectId: string) => {
+export const assertProjectWritable = async (projectId: string) => {
   const p = await prisma.project.findUniqueOrThrow({ where: { id: projectId }, select: { status: true } });
   if (p.status === "ARCHIVED") throw badRequest("This project is archived. Restore it before adding or changing tasks.");
 };
@@ -358,42 +400,33 @@ export const createTask = async (actor: Actor, input: CreateTaskInput) => {
   const labelIds = input.labelIds?.length ? await assertLabels(actor.tenant.organizationId, input.labelIds) : [];
 
   const status = input.status ?? "TODO";
-  const id = await prisma.$transaction(async (tx) => {
-    // Row lock on the project serialises numbering, so keys never collide
-    const { taskCounter } = await tx.project.update({
-      where: { id: projectId },
-      data: { taskCounter: { increment: 1 } },
-      select: { taskCounter: true },
-    });
-    const task = await tx.task.create({
-      data: {
-        number: taskCounter,
-        title: input.title,
-        description: input.description ?? null,
-        status,
-        priority: input.priority ?? "MEDIUM",
-        startDate: input.startDate ?? null,
-        dueDate: input.dueDate ?? null,
-        estimateHours: input.estimateHours ?? null,
-        actualHours: input.actualHours ?? null,
-        position: await nextPosition(tx, projectId, status),
-        completedAt: status === "DONE" ? new Date() : null,
-        // Tenant, project and creator come from server-side context, never the body
-        organizationId: actor.tenant.organizationId,
-        projectId,
-        createdById: actor.userId,
-        assigneeId: input.assigneeId ?? null,
-        parentId: input.parentId ?? null,
-        milestoneId: input.milestoneId ?? null,
-        labels: labelIds.length ? { create: labelIds.map((labelId) => ({ labelId })) } : undefined,
-      },
-      select: { id: true },
-    });
-    const watcherIds = [...new Set([actor.userId, input.assigneeId].filter((v): v is number => typeof v === "number"))];
-    await tx.taskWatcher.createMany({ data: watcherIds.map((userId) => ({ taskId: task.id, userId })), skipDuplicates: true });
-    await logActivity(tx, task.id, actor.userId, "created", { title: input.title, status });
-    return task.id;
-  });
+  // Created straight into DONE still has to respect the project's approval policy
+  if (status === "DONE") {
+    const project = await prisma.project.findUniqueOrThrow({ where: { id: projectId }, select: { completionApproval: true } });
+    if (project.completionApproval === "REQUIRED") throw new AppError(409, "APPROVAL_REQUIRED", "This project requires approval before a task is completed.");
+  }
+  const id = await prisma.$transaction((tx) =>
+    insertTask(tx, {
+      // Tenant, project and creator come from server-side context, never the body
+      organizationId: actor.tenant.organizationId,
+      projectId,
+      createdById: actor.userId,
+      title: input.title,
+      description: input.description,
+      status,
+      priority: input.priority,
+      startDate: input.startDate,
+      dueDate: input.dueDate,
+      estimateHours: input.estimateHours,
+      actualHours: input.actualHours,
+      assigneeId: input.assigneeId,
+      parentId: input.parentId,
+      milestoneId: input.milestoneId,
+      labelIds,
+      customFields: input.customFields,
+      activity: { type: "created", changes: { title: input.title, status } },
+    })
+  );
 
   return toListItem(await findVisible(actor, id));
 };
@@ -406,10 +439,11 @@ type Existing = ListRow;
  * Validates and applies one update, writing a field-level history entry.
  * Shared by PATCH and bulk updates so both enforce identical rules.
  */
-const applyUpdate = async (db: Db, actor: Actor, existing: Existing, input: UpdateTaskInput & { addLabelIds?: string[]; removeLabelIds?: string[] }) => {
+const applyUpdate = async (db: Prisma.TransactionClient, actor: Actor, existing: Existing, input: UpdateTaskInput & { addLabelIds?: string[]; removeLabelIds?: string[] }) => {
   const { projectId } = existing;
   const data: Prisma.TaskUncheckedUpdateInput = {};
   const changes: Record<string, { from: unknown; to: unknown }> = {};
+  let approvalToConsume: string | null = null;
 
   const track = <K extends keyof Existing & keyof UpdateTaskInput>(field: K) => {
     const next = input[field];
@@ -440,6 +474,7 @@ const applyUpdate = async (db: Db, actor: Actor, existing: Existing, input: Upda
   if (data.status !== undefined) {
     if (data.status === "DONE") {
       await assertNotBlocked(db, existing.id);
+      approvalToConsume = await assertCanComplete(db, existing);
       data.completedAt = new Date();
     } else if (existing.status === "DONE") {
       data.completedAt = null;
@@ -466,11 +501,16 @@ const applyUpdate = async (db: Db, actor: Actor, existing: Existing, input: Upda
     }
   }
 
+  if (input.customFields && Object.keys(input.customFields).length) {
+    Object.assign(changes, await writeFieldValues(db, existing, input.customFields, { creating: false }));
+  }
+
   if (Object.keys(data).length) await db.task.update({ where: { id: existing.id }, data });
   if (typeof data.assigneeId === "number") {
     await db.taskWatcher.createMany({ data: [{ taskId: existing.id, userId: data.assigneeId }], skipDuplicates: true });
   }
   if (Object.keys(changes).length) await logActivity(db, existing.id, actor.userId, "updated", changes as Prisma.InputJsonValue);
+  if (data.status === "DONE") await afterCompletion(db, existing.id, actor.userId, approvalToConsume);
   return Object.keys(changes);
 };
 
@@ -532,7 +572,7 @@ export const setArchived = async (actor: Actor, id: number, archived: boolean) =
 
 // ─── Dependencies ────────────────────────────────────────────────────────────
 
-const editableTask = async (actor: Actor, id: number) => {
+export const editableTask = async (actor: Actor, id: number) => {
   const task = await findVisible(actor, id);
   const caps = await resolveProjectAccess(actor, task.projectId);
   assertTaskPermission(caps, actor, task, "edit");

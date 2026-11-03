@@ -4,6 +4,9 @@ import { requireTenant, currentTenant } from "../../core/tenant";
 import { requirePermission } from "../../core/rbac";
 import { validate } from "../../core/validate";
 import * as tasks from "./tasks.service";
+import { clearRecurrence, recurrenceBody, setRecurrence } from "../recurrence/recurrence.service";
+import { requestApproval, requestBody as approvalRequestBody } from "../approvals/approvals.service";
+import { taskAttachmentsRouter } from "../attachments/attachments.routes";
 import {
   bulkBody,
   checklistBody,
@@ -86,6 +89,22 @@ tasksRouter.post("/:id/watch", canRead, validate({ params: taskIdParams }), asyn
 tasksRouter.delete("/:id/watch", canRead, validate({ params: taskIdParams }), async (req, res) => {
   res.json(await tasks.setWatching(actor(req), taskId(req), false));
 });
+
+// Recurrence: the next occurrence is created when this one is completed
+tasksRouter.put("/:id/recurrence", canEdit, validate({ params: taskIdParams, body: recurrenceBody }), async (req, res) => {
+  res.json(await setRecurrence(actor(req), taskId(req), req.body));
+});
+tasksRouter.delete("/:id/recurrence", canEdit, validate({ params: taskIdParams }), async (req, res) => {
+  res.json(await clearRecurrence(actor(req), taskId(req)));
+});
+
+// Approvals
+tasksRouter.post("/:id/approvals", canEdit, validate({ params: taskIdParams, body: approvalRequestBody }), async (req, res) => {
+  res.status(201).json(await requestApproval(req, actor(req), taskId(req), req.body));
+});
+
+// Attachments (upload/list); download and delete live under /attachments
+tasksRouter.use("/:id/attachments", taskAttachmentsRouter);
 
 // Checklist
 tasksRouter.post("/:id/checklist", canEdit, validate({ params: taskIdParams, body: checklistBody }), async (req, res) => {

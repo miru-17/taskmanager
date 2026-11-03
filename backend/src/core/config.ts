@@ -33,6 +33,12 @@ const EnvSchema = z.object({
   // Per-account lockout after repeated wrong passwords
   LOGIN_LOCKOUT_THRESHOLD: z.coerce.number().int().min(3).max(50).default(5),
   LOGIN_LOCKOUT_MINUTES: z.coerce.number().int().min(1).max(24 * 60).default(15),
+
+  // Attachments are stored on local disk under UPLOAD_DIR (see core/storage.ts)
+  UPLOAD_DIR: z.string().min(1).default("storage/uploads"),
+  MAX_UPLOAD_MB: z.coerce.number().positive().max(100).default(10),
+  MAX_ATTACHMENTS_PER_TASK: z.coerce.number().int().positive().max(200).default(20),
+  ORG_STORAGE_QUOTA_MB: z.coerce.number().positive().default(1024),
 });
 
 const parsed = EnvSchema.safeParse(process.env);

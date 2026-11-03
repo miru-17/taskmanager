@@ -48,6 +48,7 @@ export const updateProjectBody = z
     startDate: optionalDate.optional(),
     dueDate: optionalDate.optional(),
     teamId: z.union([cuidSchema, z.null()]).optional(),
+    completionApproval: z.enum(["NONE", "REQUIRED"]).optional(),
   })
   .refine((b) => Object.values(b).some((v) => v !== undefined), { message: "Provide at least one field to update" });
 
