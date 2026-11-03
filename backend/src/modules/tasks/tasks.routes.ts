@@ -3,9 +3,20 @@ import { authenticate, currentAuth } from "../../core/auth";
 import { requireTenant, currentTenant } from "../../core/tenant";
 import { requirePermission } from "../../core/rbac";
 import { validate } from "../../core/validate";
-import { idParamSchema } from "../../core/schemas";
 import * as tasks from "./tasks.service";
-import { createTaskBody, updateTaskBody } from "./tasks.schemas";
+import {
+  bulkBody,
+  checklistBody,
+  checklistParams,
+  checklistUpdateBody,
+  createTaskBody,
+  dependencyBody,
+  dependencyParams,
+  listTasksQuery,
+  taskIdParams,
+  updateTaskBody,
+  type ListTasksQuery,
+} from "./tasks.schemas";
 
 export const tasksRouter = Router();
 
@@ -14,37 +25,76 @@ tasksRouter.use(authenticate, requireTenant);
 const actor = (req: Request): tasks.Actor => ({ userId: currentAuth(req).userId, tenant: currentTenant(req) });
 const taskId = (req: Request) => req.params.id as unknown as number;
 
-tasksRouter.get("/", requirePermission("tasks:read"), async (req, res) => {
-  res.status(200).json(await tasks.listTasks(actor(req)));
+// Route level: may this role do this at all? Service level: in THIS project, on THIS task?
+const canRead = requirePermission("tasks:read");
+const canEdit = requirePermission("tasks:update_any", "tasks:update_own");
+const canDelete = requirePermission("tasks:delete_any", "tasks:delete_own");
+
+tasksRouter.get("/", canRead, validate({ query: listTasksQuery }), async (req, res) => {
+  res.json(await tasks.listTasks(actor(req), res.locals.query as ListTasksQuery));
 });
 
 tasksRouter.post("/", requirePermission("tasks:create"), validate({ body: createTaskBody }), async (req, res) => {
   res.status(201).json(await tasks.createTask(actor(req), req.body));
 });
 
-tasksRouter.get("/:id", requirePermission("tasks:read"), validate({ params: idParamSchema }), async (req, res) => {
-  res.status(200).json(await tasks.getTask(actor(req), taskId(req)));
+// Must come before "/:id" so "bulk" isn't parsed as an id
+tasksRouter.post("/bulk", canEdit, validate({ body: bulkBody }), async (req, res) => {
+  res.json(await tasks.bulk(req, actor(req), req.body));
 });
 
-// Route-level: may this role edit tasks at all? Service-level: may it edit THIS task?
+tasksRouter.get("/:id", canRead, validate({ params: taskIdParams }), async (req, res) => {
+  res.json(await tasks.getTask(actor(req), taskId(req)));
+});
+
+tasksRouter.get("/:id/activity", canRead, validate({ params: taskIdParams }), async (req, res) => {
+  res.json(await tasks.getActivity(actor(req), taskId(req)));
+});
+
 const updateHandler: RequestHandler = async (req, res) => {
-  res.status(200).json(await tasks.updateTask(actor(req), taskId(req), req.body));
+  res.json(await tasks.updateTask(actor(req), taskId(req), req.body));
 };
-const update = [
-  requirePermission("tasks:update_any", "tasks:update_own"),
-  validate({ params: idParamSchema, body: updateTaskBody }),
-  updateHandler,
-];
+const update = [canEdit, validate({ params: taskIdParams, body: updateTaskBody }), updateHandler];
 // PUT kept for compatibility; PATCH is the semantically correct partial update
 tasksRouter.put("/:id", ...update);
 tasksRouter.patch("/:id", ...update);
 
-tasksRouter.delete(
-  "/:id",
-  requirePermission("tasks:delete_any", "tasks:delete_own"),
-  validate({ params: idParamSchema }),
-  async (req, res) => {
-    await tasks.deleteTask(req, actor(req), taskId(req));
-    res.status(200).json({ message: "Task deleted successfully" });
-  }
-);
+tasksRouter.delete("/:id", canDelete, validate({ params: taskIdParams }), async (req, res) => {
+  await tasks.deleteTask(req, actor(req), taskId(req));
+  res.json({ message: "Task deleted successfully" });
+});
+
+tasksRouter.post("/:id/archive", canEdit, validate({ params: taskIdParams }), async (req, res) => {
+  res.json(await tasks.setArchived(actor(req), taskId(req), true));
+});
+tasksRouter.post("/:id/unarchive", canEdit, validate({ params: taskIdParams }), async (req, res) => {
+  res.json(await tasks.setArchived(actor(req), taskId(req), false));
+});
+
+// Dependencies: "this task is blocked by dependsOnId"
+tasksRouter.post("/:id/dependencies", canEdit, validate({ params: taskIdParams, body: dependencyBody }), async (req, res) => {
+  res.status(201).json(await tasks.addDependency(actor(req), taskId(req), req.body.dependsOnId));
+});
+tasksRouter.delete("/:id/dependencies/:dependsOnId", canEdit, validate({ params: dependencyParams }), async (req, res) => {
+  res.json(await tasks.removeDependency(actor(req), taskId(req), req.params.dependsOnId as unknown as number));
+});
+
+// Watching is personal: anyone who can see the task may follow it
+tasksRouter.post("/:id/watch", canRead, validate({ params: taskIdParams }), async (req, res) => {
+  res.json(await tasks.setWatching(actor(req), taskId(req), true));
+});
+tasksRouter.delete("/:id/watch", canRead, validate({ params: taskIdParams }), async (req, res) => {
+  res.json(await tasks.setWatching(actor(req), taskId(req), false));
+});
+
+// Checklist
+tasksRouter.post("/:id/checklist", canEdit, validate({ params: taskIdParams, body: checklistBody }), async (req, res) => {
+  res.status(201).json(await tasks.addChecklistItem(actor(req), taskId(req), req.body.text));
+});
+tasksRouter.patch("/:id/checklist/:itemId", canEdit, validate({ params: checklistParams, body: checklistUpdateBody }), async (req, res) => {
+  res.json(await tasks.updateChecklistItem(actor(req), taskId(req), req.params.itemId as string, req.body));
+});
+tasksRouter.delete("/:id/checklist/:itemId", canEdit, validate({ params: checklistParams }), async (req, res) => {
+  await tasks.deleteChecklistItem(actor(req), taskId(req), req.params.itemId as string);
+  res.json({ message: "Item removed" });
+});

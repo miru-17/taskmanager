@@ -11,7 +11,7 @@ describe("Tenant isolation", () => {
     const globex = await signUp({ organizationName: "Globex" });
     const secret = await createTask(acme, "Acme secret roadmap");
 
-    expect((await request(app).get("/tasks").set(globex.auth)).body).toEqual([]);
+    expect((await request(app).get("/tasks").set(globex.auth)).body.items).toEqual([]);
     expect((await request(app).get(`/tasks/${secret.id}`).set(globex.auth)).status).toBe(404);
     expect((await request(app).patch(`/tasks/${secret.id}`).set(globex.auth).send({ title: "pwned" })).status).toBe(404);
     expect((await request(app).delete(`/tasks/${secret.id}`).set(globex.auth)).status).toBe(404);
@@ -29,7 +29,7 @@ describe("Tenant isolation", () => {
     expect(res.status).toBe(201);
     expect(res.body.organizationId).toBe(globex.orgId);
     expect(res.body.createdById).toBe(globex.userId);
-    expect((await request(app).get("/tasks").set(acme.auth)).body).toEqual([]);
+    expect((await request(app).get("/tasks").set(acme.auth)).body.items).toEqual([]);
   });
 
   it("refuses to switch into an organization the user doesn't belong to", async () => {
@@ -99,12 +99,12 @@ describe("Multiple organizations per user", () => {
     expect(created.body.organizations).toHaveLength(2);
 
     const second = { Authorization: `Bearer ${created.body.accessToken}` };
-    expect((await request(app).get("/tasks").set(second)).body).toEqual([]);
+    expect((await request(app).get("/tasks").set(second)).body.items).toEqual([]);
     await request(app).post("/tasks").set(second).send({ title: "in second" }).expect(201);
 
     const back = await request(app).post("/auth/switch-organization").set(second).send({ organizationId: u.orgId });
     const first = { Authorization: `Bearer ${back.body.accessToken}` };
-    expect((await request(app).get("/tasks").set(first)).body.map((t: { title: string }) => t.title)).toEqual(["in first"]);
+    expect((await request(app).get("/tasks").set(first)).body.items.map((t: { title: string }) => t.title)).toEqual(["in first"]);
   });
 
   it("remembers the active organization across refreshes", async () => {
@@ -153,8 +153,9 @@ describe("Task rules carried over from Phase 0", () => {
     expect((await request(app).post("/tasks").set(u.auth).send({ title: "x", dueDate: isoDate(-5) })).status).toBe(400);
     expect((await request(app).get("/tasks/abc").set(u.auth)).status).toBe(400);
 
+    const project = await prisma.project.findFirstOrThrow({ where: { organizationId: u.orgId! } });
     const task = await prisma.task.create({
-      data: { title: "late", organizationId: u.orgId!, createdById: u.userId, dueDate: new Date(`${isoDate(-10)}T00:00:00Z`) },
+      data: { title: "late", number: 99, projectId: project.id, organizationId: u.orgId!, createdById: u.userId, dueDate: new Date(`${isoDate(-10)}T00:00:00Z`) },
     });
     const res = await request(app).put(`/tasks/${task.id}`).set(u.auth).send({ status: "DONE", dueDate: isoDate(-10) });
     expect(res.status).toBe(200);

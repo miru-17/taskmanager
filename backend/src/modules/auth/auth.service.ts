@@ -1,3 +1,4 @@
+import { createDefaultProject } from "../projects/projects.service";
 import type { Request, Response } from "express";
 import type { Prisma, UserTokenType } from "@prisma/client";
 import { prisma } from "../../core/prisma";
@@ -126,6 +127,7 @@ export const register = async (req: Request, input: RegisterInput): Promise<void
     });
     const org = await tx.organization.create({ data: { name: orgName, slug: makeSlug(orgName) } });
     await tx.membership.create({ data: { organizationId: org.id, userId: created.id, role: "ORG_ADMIN" } });
+    await createDefaultProject(tx, org.id, created.id);
     const verifyToken = await issueUserToken(tx, created.id, "VERIFY_EMAIL", VERIFY_TTL_MS);
     return { user: created, token: verifyToken, organizationId: org.id };
   });

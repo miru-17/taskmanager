@@ -25,7 +25,19 @@ export type AuditAction =
   | "member.joined"
   | "invitation.created"
   | "invitation.revoked"
-  | "task.deleted";
+  | "task.deleted"
+  | "task.bulk"
+  | "project.created"
+  | "project.updated"
+  | "project.archived"
+  | "project.deleted"
+  | "project.member_set"
+  | "project.member_removed"
+  | "team.created"
+  | "team.updated"
+  | "team.deleted"
+  | "team.member_set"
+  | "team.member_removed";
 
 interface AuditEntry {
   action: AuditAction;

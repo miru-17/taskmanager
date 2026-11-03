@@ -21,19 +21,26 @@ export const PERMISSIONS = [
   "tasks:update_own",
   "tasks:delete_any",
   "tasks:delete_own",
+  "projects:create",
+  "projects:manage_any", // edit/archive any project and its members/milestones
+  "teams:manage",
+  "labels:manage",
 ] as const;
 
 export type Permission = (typeof PERMISSIONS)[number];
 
-const TASK_WORKER: Permission[] = ["tasks:read", "tasks:create", "tasks:update_any", "tasks:delete_any"];
+const TASK_WORKER: Permission[] = ["tasks:read", "tasks:create", "tasks:update_any", "tasks:delete_any", "labels:manage"];
 
 export const ROLE_PERMISSIONS: Record<OrgRole, readonly Permission[]> = {
   ORG_ADMIN: PERMISSIONS,
-  PROJECT_MANAGER: ["org:read", "members:read", "members:invite", "invitations:manage", ...TASK_WORKER],
+  PROJECT_MANAGER: [
+    "org:read", "members:read", "members:invite", "invitations:manage",
+    "projects:create", "projects:manage_any", "teams:manage", ...TASK_WORKER,
+  ],
   TEAM_LEAD: ["org:read", "members:read", ...TASK_WORKER],
   MEMBER: ["org:read", "members:read", "tasks:read", "tasks:create", "tasks:update_own", "tasks:delete_own"],
-  // Clients get access to specific projects in Phase 3; until then they see no internal work
-  CLIENT: ["org:read"],
+  // Clients can read tasks, but project access limits them to projects they were explicitly added to
+  CLIENT: ["org:read", "tasks:read"],
   VIEWER: ["org:read", "members:read", "tasks:read"],
 };
 

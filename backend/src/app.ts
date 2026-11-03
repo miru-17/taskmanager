@@ -8,6 +8,9 @@ import { usersRouter } from "./modules/users/users.routes";
 import { tasksRouter } from "./modules/tasks/tasks.routes";
 import { orgsRouter, invitationsRouter } from "./modules/orgs/orgs.routes";
 import { adminRouter } from "./modules/admin/admin.routes";
+import { projectsRouter } from "./modules/projects/projects.routes";
+import { teamsRouter } from "./modules/teams/teams.routes";
+import { labelsRouter, viewsRouter } from "./modules/labels/labels.routes";
 
 export const createApp = () => {
   const app = express();
@@ -39,6 +42,10 @@ export const createApp = () => {
   app.use("/orgs", orgsRouter);
   app.use("/invitations", invitationsRouter);
   app.use("/tasks", tasksRouter);
+  app.use("/projects", projectsRouter);
+  app.use("/teams", teamsRouter);
+  app.use("/labels", labelsRouter);
+  app.use("/views", viewsRouter);
   app.use("/admin", adminRouter);
 
   app.use(notFoundHandler);

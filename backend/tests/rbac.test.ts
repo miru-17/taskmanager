@@ -27,7 +27,8 @@ describe("Task permission matrix", () => {
     PROJECT_MANAGER: [200, 201, 200, 200],
     TEAM_LEAD:       [200, 201, 200, 200],
     MEMBER:          [200, 201, 403, 403],
-    CLIENT:          [403, 403, 403, 403],
+    // Clients may read, but only projects they were explicitly added to (none here)
+    CLIENT:          [200, 403, 403, 403],
     VIEWER:          [200, 403, 403, 403],
   };
 
@@ -40,6 +41,13 @@ describe("Task permission matrix", () => {
     expect(await status(user, "post", "/tasks", { title: `by ${role}` })).toBe(create);
     expect(await status(user, "patch", `/tasks/${others.id}`, { status: "DONE" })).toBe(update);
     expect(await status(user, "delete", `/tasks/${others.id}`)).toBe(del);
+  });
+
+  it("a CLIENT sees no tasks until added to a project", async () => {
+    await createTask(admin, "internal");
+    const res = await request(app).get("/tasks").set(users.CLIENT.auth);
+    expect(res.body).toMatchObject({ items: [], total: 0 });
+    expect((await request(app).get("/projects").set(users.CLIENT.auth)).body).toEqual([]);
   });
 
   it("a MEMBER can edit and delete their own tasks", async () => {

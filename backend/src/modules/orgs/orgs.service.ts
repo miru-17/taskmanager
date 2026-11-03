@@ -1,3 +1,4 @@
+import { createDefaultProject } from "../projects/projects.service";
 import type { Request } from "express";
 import type { OrgRole } from "@prisma/client";
 import { prisma } from "../../core/prisma";
@@ -28,6 +29,7 @@ export const createOrganization = async (req: Request, userId: number, name: str
   const org = await prisma.$transaction(async (tx) => {
     const created = await tx.organization.create({ data: { name, slug: makeSlug(name) } });
     await tx.membership.create({ data: { organizationId: created.id, userId, role: "ORG_ADMIN" } });
+    await createDefaultProject(tx, created.id, userId);
     return created;
   });
   await audit(req, { action: "org.created", organizationId: org.id, targetType: "organization", targetId: org.id });
