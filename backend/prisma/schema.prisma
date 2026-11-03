@@ -10,25 +10,163 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+// ─────────────────────────────────────────────────────────────────────────────
+// Identity
+// ─────────────────────────────────────────────────────────────────────────────
+
+model User {
+  id              Int       @id @default(autoincrement())
+  email           String    @unique
+  password        String // Argon2id hash (legacy bcrypt hashes are upgraded on next login)
+  name            String?
+  emailVerifiedAt DateTime?
+  isSuperAdmin    Boolean   @default(false) // platform operator; grants NO tenant data access
+
+  // Brute-force protection (per account; per-IP limits live in middleware)
+  failedLoginCount Int       @default(0)
+  lockedUntil      DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  memberships        Membership[]
+  sessions           Session[]
+  tokens             UserToken[]
+  tasksCreated       Task[]        @relation("TaskCreator")
+  invitationsSent    Invitation[]  @relation("InvitationInviter")
+  auditLogs          AuditLog[]
+}
+
+/// One row per signed-in device. The refresh token itself is never stored, only its SHA-256.
+model Session {
+  id                   String    @id @default(cuid())
+  userId               Int
+  refreshTokenHash     String    @unique
+  previousTokenHash    String?   @unique // detects reuse of a rotated-out token
+  rotatedAt            DateTime?
+  activeOrganizationId String?
+  userAgent            String?
+  ipAddress            String?
+  createdAt            DateTime  @default(now())
+  lastUsedAt           DateTime  @default(now())
+  expiresAt            DateTime
+  revokedAt            DateTime?
+  revokedReason        String?
+
+  user               User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  activeOrganization Organization? @relation(fields: [activeOrganizationId], references: [id], onDelete: SetNull)
+
+  @@index([userId, revokedAt])
+}
+
+enum UserTokenType {
+  VERIFY_EMAIL
+  RESET_PASSWORD
+}
+
+/// Single-use emailed tokens (stored hashed).
+model UserToken {
+  id        String        @id @default(cuid())
+  userId    Int
+  type      UserTokenType
+  tokenHash String        @unique
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime      @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, type])
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Tenancy
+// ─────────────────────────────────────────────────────────────────────────────
+
+model Organization {
+  id        String   @id @default(cuid())
+  name      String
+  slug      String   @unique
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  memberships Membership[]
+  invitations Invitation[]
+  tasks       Task[]
+  auditLogs   AuditLog[]
+  sessions    Session[]
+}
+
+enum OrgRole {
+  ORG_ADMIN
+  PROJECT_MANAGER
+  TEAM_LEAD
+  MEMBER
+  CLIENT
+  VIEWER
+}
+
+model Membership {
+  id             String   @id @default(cuid())
+  organizationId String
+  userId         Int
+  role           OrgRole  @default(MEMBER)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  user         User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([organizationId, userId])
+  @@index([userId])
+}
+
+model Invitation {
+  id             String    @id @default(cuid())
+  organizationId String
+  email          String
+  role           OrgRole
+  tokenHash      String    @unique
+  invitedById    Int?
+  expiresAt      DateTime
+  acceptedAt     DateTime?
+  revokedAt      DateTime?
+  createdAt      DateTime  @default(now())
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  invitedBy    User?        @relation("InvitationInviter", fields: [invitedById], references: [id], onDelete: SetNull)
+
+  @@index([organizationId, email])
+}
+
+/// Append-only record of security-relevant actions.
+model AuditLog {
+  id             String   @id @default(cuid())
+  organizationId String?
+  actorId        Int?
+  action         String
+  targetType     String?
+  targetId       String?
+  metadata       Json?
+  ipAddress      String?
+  userAgent      String?
+  createdAt      DateTime @default(now())
+
+  organization Organization? @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  actor        User?         @relation(fields: [actorId], references: [id], onDelete: SetNull)
+
+  @@index([organizationId, createdAt])
+  @@index([actorId, createdAt])
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Work
+// ─────────────────────────────────────────────────────────────────────────────
+
 enum Status {
   TODO
   IN_PROGRESS
   DONE
-}
-
-model User {
-  id               Int       @id @default(autoincrement())
-  email            String    @unique
-  password         String
-
-  // Password reset — resetToken stores a SHA-256 hash of the emailed token, never the token itself
-  resetToken       String?
-  resetTokenExpiry DateTime?
-
-  createdAt        DateTime  @default(now())
-  updatedAt        DateTime  @updatedAt
-
-  tasks            Task[]
 }
 
 model Task {
@@ -38,11 +176,15 @@ model Task {
   status      Status    @default(TODO)
   dueDate     DateTime?
 
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
-  userId      Int
-  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  organizationId String
+  createdById    Int?
 
-  @@index([userId, createdAt])
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  createdBy    User?        @relation("TaskCreator", fields: [createdById], references: [id], onDelete: SetNull)
+
+  @@index([organizationId, createdAt])
+  @@index([createdById])
 }

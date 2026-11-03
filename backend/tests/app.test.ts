@@ -25,6 +25,8 @@ describe("Platform", () => {
 
   it("allows the configured frontend origin and not others", async () => {
     const ok = await request(app).options("/tasks").set("Origin", "http://localhost:5173").set("Access-Control-Request-Method", "PATCH");
+    expect(ok.headers["access-control-allow-headers"]).toContain("x-taskforge-csrf");
+    expect(ok.headers["access-control-allow-credentials"]).toBe("true");
     expect(ok.headers["access-control-allow-origin"]).toBe("http://localhost:5173");
     expect(ok.headers["access-control-allow-methods"]).toContain("PATCH");
 

@@ -1,10 +1,13 @@
 import express from "express";
+import cookieParser from "cookie-parser";
 import { corsPolicy, securityHeaders } from "./core/security";
 import { errorHandler, notFoundHandler } from "./core/errors";
 import { prisma } from "./core/prisma";
 import { authRouter } from "./modules/auth/auth.routes";
 import { usersRouter } from "./modules/users/users.routes";
 import { tasksRouter } from "./modules/tasks/tasks.routes";
+import { orgsRouter, invitationsRouter } from "./modules/orgs/orgs.routes";
+import { adminRouter } from "./modules/admin/admin.routes";
 
 export const createApp = () => {
   const app = express();
@@ -15,6 +18,7 @@ export const createApp = () => {
 
   app.use(securityHeaders);
   app.use(corsPolicy);
+  app.use(cookieParser());
   app.use(express.json({ limit: "100kb" }));
 
   app.get("/health", (_req, res) => {
@@ -32,7 +36,10 @@ export const createApp = () => {
 
   app.use("/auth", authRouter);
   app.use("/user", usersRouter);
+  app.use("/orgs", orgsRouter);
+  app.use("/invitations", invitationsRouter);
   app.use("/tasks", tasksRouter);
+  app.use("/admin", adminRouter);
 
   app.use(notFoundHandler);
   app.use(errorHandler);

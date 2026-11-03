@@ -1,15 +1,19 @@
 import { useState } from "react";
-import { useNavigate, Link } from "react-router-dom";
+import { useNavigate, Link, useLocation } from "react-router-dom";
 import toast from "react-hot-toast";
 
 import background from "../assets/background.jpg";
 
 import api from "../services/api";
 import { useAuth } from "../context/AuthContext";
+import type { AuthPayload } from "../types/auth";
 
 const Login = () => {
   const navigate = useNavigate();
-  const { login } = useAuth();
+  const location = useLocation();
+  const { applySession } = useAuth();
+  // Return to where the user was headed (e.g. an invitation link)
+  const from = (location.state as { from?: string } | null)?.from ?? "/";
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -21,16 +25,16 @@ const Login = () => {
     try {
       setLoading(true);
 
-      const response = await api.post("/auth/login", {
+      const response = await api.post<AuthPayload>("/auth/login", {
         email,
         password,
       });
 
-      login(response.data.token, response.data.user);
+      applySession(response.data);
 
       toast.success("Login successful!");
 
-      navigate("/");
+      navigate(from, { replace: true });
     } catch (error: any) {
       toast.error(
         error.response?.data?.message || "Invalid email or password"
@@ -98,6 +102,7 @@ const Login = () => {
             Don't have an account?{" "}
             <Link
               to="/register"
+              state={{ from }}
               className="text-cyan-400 hover:underline"
             >
               Register

@@ -1,24 +1,35 @@
 import { z } from "zod";
-import { emailSchema, newPasswordSchema } from "../../core/schemas";
+import { cuidSchema, emailSchema, newPasswordSchema, passwordInputSchema } from "../../core/schemas";
+
+const optionalName = (max: number, label: string) =>
+  z
+    .string()
+    .trim()
+    .max(max, `${label} must be at most ${max} characters`)
+    .optional()
+    .transform((v) => (v ? v : undefined));
 
 export const registerBody = z.object({
   email: emailSchema,
   password: newPasswordSchema,
+  name: optionalName(100, "Name"),
+  organizationName: optionalName(100, "Organization name"),
+  inviteToken: z.string().regex(/^[a-f0-9]{64}$/, "This invitation is invalid or has expired").optional(),
 });
 
 export const loginBody = z.object({
   email: emailSchema,
-  password: z.string({ error: "Email and password are required" }).min(1, "Email and password are required").max(128),
+  password: passwordInputSchema,
 });
 
-export const forgotPasswordBody = z.object({
-  email: emailSchema,
+export const forgotPasswordBody = z.object({ email: emailSchema });
+
+export const resetPasswordBody = z.object({ password: newPasswordSchema });
+
+export const verifyEmailBody = z.object({
+  token: z.string().regex(/^[a-f0-9]{64}$/, "This link is invalid or has expired"),
 });
 
-export const resetTokenParams = z.object({
-  token: z.string().regex(/^[a-f0-9]{64}$/, "Invalid or expired reset token"),
-});
+export const switchOrganizationBody = z.object({ organizationId: cuidSchema });
 
-export const resetPasswordBody = z.object({
-  password: newPasswordSchema,
-});
+export const sessionIdParams = z.object({ id: cuidSchema });

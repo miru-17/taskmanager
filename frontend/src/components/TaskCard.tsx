@@ -2,6 +2,9 @@ import type { Task } from "../types/Task";
 
 interface TaskCardProps {
   task: Task;
+  /** UI hints from the caller's permissions; the server still enforces them. */
+  canEdit?: boolean;
+  canDelete?: boolean;
   onEdit: (task: Task) => void;
   onDelete: (id: number) => void;
   onStatusChange: (
@@ -12,6 +15,8 @@ interface TaskCardProps {
 
 const TaskCard = ({
   task,
+  canEdit = true,
+  canDelete = true,
   onEdit,
   onDelete,
   onStatusChange,
@@ -78,6 +83,12 @@ const TaskCard = ({
         {task.description || "No Description"}
       </p>
 
+      {task.createdBy && (
+        <p className="text-slate-500 text-sm mt-3">
+          Created by {task.createdBy.name || task.createdBy.email}
+        </p>
+      )}
+
       {/* Status Dropdown */}
       <div className="mt-6">
         <label className="block text-sm text-slate-400 mb-2">
@@ -85,6 +96,8 @@ const TaskCard = ({
         </label>
 
         <select
+  aria-label={`Status of ${task.title}`}
+  disabled={!canEdit}
   value={task.status}
   onChange={(e) => {
     e.stopPropagation();
@@ -105,6 +118,7 @@ const TaskCard = ({
             focus:outline-none
             focus:ring-2
             focus:ring-cyan-500
+            disabled:opacity-60
           "
         >
           <option value="TODO">TODO</option>
@@ -126,6 +140,7 @@ const TaskCard = ({
         </div>
 
         <div className="flex gap-3">
+          {canEdit && (
           <button
             onClick={() => onEdit(task)}
             className="
@@ -144,7 +159,9 @@ const TaskCard = ({
           >
             ✏ Edit
           </button>
+          )}
 
+          {canDelete && (
           <button
             onClick={() => onDelete(task.id)}
             className="
@@ -163,6 +180,7 @@ const TaskCard = ({
           >
             🗑 Delete
           </button>
+          )}
         </div>
       </div>
     </div>

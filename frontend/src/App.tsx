@@ -6,58 +6,39 @@ import Register from "./pages/Register";
 import ChangePassword from "./pages/ChangePassword";
 import ForgotPassword from "./pages/ForgotPassword";
 import ResetPassword from "./pages/ResetPassword";
+import VerifyEmail from "./pages/VerifyEmail";
+import AcceptInvite from "./pages/AcceptInvite";
+import OrganizationSettings from "./pages/OrganizationSettings";
+import SecuritySettings from "./pages/SecuritySettings";
 
-
-import ProtectedRoute from "./routes/ProtectedRoute";
+import ProtectedRoute, { FullPageSpinner } from "./routes/ProtectedRoute";
 import { useAuth } from "./context/AuthContext";
+import type { ReactNode } from "react";
 
-function AppRoutes() {
-  const { isAuthenticated } = useAuth();
+/** Login/register pages: bounce signed-in users to the app (after the session check finishes). */
+const GuestOnly = ({ children }: { children: ReactNode }) => {
+  const { status } = useAuth();
+  if (status === "loading") return <FullPageSpinner />;
+  return status === "authenticated" ? <Navigate to="/" replace /> : <>{children}</>;
+};
 
+const protectedPage = (page: ReactNode) => <ProtectedRoute>{page}</ProtectedRoute>;
+
+export function AppRoutes() {
   return (
     <Routes>
-      {/* Protected Home */}
-      <Route
-        path="/"
-        element={
-          <ProtectedRoute>
-            <Home />
-          </ProtectedRoute>
-        }
-      />
+      <Route path="/" element={protectedPage(<Home />)} />
+      <Route path="/change-password" element={protectedPage(<ChangePassword />)} />
+      <Route path="/settings/organization" element={protectedPage(<OrganizationSettings />)} />
+      <Route path="/settings/security" element={protectedPage(<SecuritySettings />)} />
 
-      {/* Login */}
-      <Route
-        path="/login"
-        element={
-          isAuthenticated ? <Navigate to="/" replace /> : <Login />
-        }
-      />
+      <Route path="/login" element={<GuestOnly><Login /></GuestOnly>} />
+      <Route path="/register" element={<GuestOnly><Register /></GuestOnly>} />
+      <Route path="/forgot-password" element={<ForgotPassword />} />
+      <Route path="/reset-password/:token" element={<ResetPassword />} />
+      <Route path="/verify-email/:token" element={<VerifyEmail />} />
+      <Route path="/invite/:token" element={<AcceptInvite />} />
 
-      {/* Register */}
-      <Route
-        path="/register"
-        element={
-          isAuthenticated ? <Navigate to="/" replace /> : <Register />
-        }
-      />
-      <Route
-  path="/change-password"
-  element={
-    <ProtectedRoute>
-      <ChangePassword />
-    </ProtectedRoute>
-  }
-/>
-<Route
-  path="/forgot-password"
-  element={<ForgotPassword />}
-/>
-  <Route
-  path="/reset-password/:token"
-  element={<ResetPassword />}
-/>
-      {/* Unknown Route */}
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
   );
