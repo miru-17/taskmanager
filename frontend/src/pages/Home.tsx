@@ -62,25 +62,13 @@ const Home = () => {
     }
   };
 
-  // Change Status
- // Change Status
+  // Change Status — send only the field that changed (partial update)
 const handleStatusChange = async (
   id: number,
   status: "TODO" | "IN_PROGRESS" | "DONE"
 ) => {
   try {
-    const task = tasks.find((t) => t.id === id);
-
-    if (!task) return;
-
-    await api.put(`/tasks/${id}`, {
-      title: task.title,
-      description: task.description ?? "",
-      status,
-      dueDate: task.dueDate
-        ? task.dueDate.split("T")[0]
-        : null,
-    });
+    await api.patch(`/tasks/${id}`, { status });
 
     // Update UI immediately
     setTasks((prev) =>
@@ -239,6 +227,7 @@ const handleStatusChange = async (
 
             <TaskForm
               editingTask={editingTask}
+              onCancelEdit={() => setEditingTask(null)}
               onTaskCreated={async () => {
                 await fetchTasks();
                 setEditingTask(null);

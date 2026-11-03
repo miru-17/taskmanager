@@ -1,20 +1,43 @@
 import express from "express";
-import cors from "cors";
-import taskRoutes from "./routes/taskRoutes";
-import authRoutes from "./routes/authRoutes";
-const app = express();
+import { corsPolicy, securityHeaders } from "./core/security";
+import { errorHandler, notFoundHandler } from "./core/errors";
+import { prisma } from "./core/prisma";
+import { authRouter } from "./modules/auth/auth.routes";
+import { usersRouter } from "./modules/users/users.routes";
+import { tasksRouter } from "./modules/tasks/tasks.routes";
 
-// Allow requests from Vite frontend
-app.use(
-  cors({
-    origin: "http://localhost:5173",
-    methods: ["GET", "POST", "PUT", "DELETE"],
-    credentials: true,
-  })
-);
+export const createApp = () => {
+  const app = express();
 
-app.use(express.json());
-app.use("/auth", authRoutes);
-app.use("/tasks", taskRoutes);
+  app.disable("x-powered-by");
+  // Behind one reverse proxy in production (needed for correct client IPs in rate limiting)
+  app.set("trust proxy", 1);
 
-export default app;
+  app.use(securityHeaders);
+  app.use(corsPolicy);
+  app.use(express.json({ limit: "100kb" }));
+
+  app.get("/health", (_req, res) => {
+    res.status(200).json({ status: "ok" });
+  });
+
+  app.get("/health/ready", async (_req, res) => {
+    try {
+      await prisma.$queryRaw`SELECT 1`;
+      res.status(200).json({ status: "ok", database: "up" });
+    } catch {
+      res.status(503).json({ status: "unavailable", database: "down" });
+    }
+  });
+
+  app.use("/auth", authRouter);
+  app.use("/user", usersRouter);
+  app.use("/tasks", tasksRouter);
+
+  app.use(notFoundHandler);
+  app.use(errorHandler);
+
+  return app;
+};
+
+export default createApp;

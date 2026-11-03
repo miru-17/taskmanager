@@ -1,5 +1,8 @@
 generator client {
-  provider = "prisma-client-js"
+  provider   = "prisma-client-js"
+  // Rust-free client (GA since Prisma 6.16): no native query-engine binary,
+  // queries run through the @prisma/adapter-pg driver adapter. See docs/adr/0001.
+  engineType = "client"
 }
 
 datasource db {
@@ -18,15 +21,13 @@ model User {
   email            String    @unique
   password         String
 
-  // Password Reset
+  // Password reset — resetToken stores a SHA-256 hash of the emailed token, never the token itself
   resetToken       String?
   resetTokenExpiry DateTime?
 
-  // Timestamps
   createdAt        DateTime  @default(now())
   updatedAt        DateTime  @updatedAt
 
-  // Relationships
   tasks            Task[]
 }
 
@@ -37,11 +38,11 @@ model Task {
   status      Status    @default(TODO)
   dueDate     DateTime?
 
-  // Timestamps
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
 
-  // Relationship
   userId      Int
   user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt])
 }

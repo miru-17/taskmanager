@@ -3,68 +3,72 @@ import api from "../services/api";
 import toast from "react-hot-toast";
 import type { Task } from "../types/Task";
 
-
 interface TaskFormProps {
   onTaskCreated: () => void;
+  onCancelEdit?: () => void;
   editingTask: Task | null;
 }
 
-const TaskForm = ({ onTaskCreated, editingTask }: TaskFormProps) => {
+const todayLocal = () => {
+  const d = new Date();
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+};
+
+const TaskForm = ({ onTaskCreated, onCancelEdit, editingTask }: TaskFormProps) => {
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
-  const [status, setStatus] = useState("TODO");
+  const [status, setStatus] = useState<Task["status"]>("TODO");
   const [dueDate, setDueDate] = useState("");
+  const [saving, setSaving] = useState(false);
+
+  const resetForm = () => {
+    setTitle("");
+    setDescription("");
+    setStatus("TODO");
+    setDueDate("");
+  };
 
   useEffect(() => {
     if (editingTask) {
       setTitle(editingTask.title);
       setDescription(editingTask.description || "");
       setStatus(editingTask.status);
-
-      if (editingTask.dueDate) {
-        setDueDate(editingTask.dueDate.split("T")[0]);
-      }
+      // Always overwrite, so a previous task's date never leaks into this one
+      setDueDate(editingTask.dueDate ? editingTask.dueDate.split("T")[0] : "");
     } else {
-      setTitle("");
-      setDescription("");
-      setStatus("TODO");
-      setDueDate("");
+      resetForm();
     }
   }, [editingTask]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    try {
-      if (editingTask) {
-        await api.put(`/tasks/${editingTask.id}`, {
-          title,
-          description,
-          status,
-          dueDate,
-        });
-        toast.success("Task Updated Successfully!");
-        
-      } else {
-        await api.post("/tasks", {
-          title,
-          description,
-          status,
-          dueDate,
-        });
+    const payload = {
+      title,
+      description,
+      status,
+      dueDate: dueDate || null,
+    };
 
+    try {
+      setSaving(true);
+
+      if (editingTask) {
+        await api.put(`/tasks/${editingTask.id}`, payload);
+        toast.success("Task Updated Successfully!");
+      } else {
+        await api.post("/tasks", payload);
         toast.success("Task Created Successfully!");
       }
 
-      setTitle("");
-      setDescription("");
-      setStatus("TODO");
-      setDueDate("");
-
+      resetForm();
       onTaskCreated();
-    } catch (error) {
+    } catch (error: any) {
       console.error(error);
-      toast.error("Failed to save task.");
+      toast.error(error.response?.data?.message || "Failed to save task.");
+    } finally {
+      setSaving(false);
     }
   };
 
@@ -80,43 +84,48 @@ const TaskForm = ({ onTaskCreated, editingTask }: TaskFormProps) => {
 
       <form onSubmit={handleSubmit} className="space-y-6">
         <div>
-          <label className="block text-gray-700 font-semibold mb-2">
+          <label htmlFor="task-title" className="block text-gray-700 font-semibold mb-2">
             Title
           </label>
 
           <input
+            id="task-title"
             type="text"
             placeholder="Enter task title"
             value={title}
             onChange={(e) => setTitle(e.target.value)}
             required
+            maxLength={200}
             className="w-full rounded-xl border border-gray-300 px-4 py-3 focus:ring-2 focus:ring-blue-500 outline-none"
           />
         </div>
 
         <div>
-          <label className="block text-gray-700 font-semibold mb-2">
+          <label htmlFor="task-description" className="block text-gray-700 font-semibold mb-2">
             Description
           </label>
 
           <textarea
+            id="task-description"
             rows={4}
             placeholder="Enter task description..."
             value={description}
             onChange={(e) => setDescription(e.target.value)}
+            maxLength={5000}
             className="w-full rounded-xl border border-gray-300 px-4 py-3 focus:ring-2 focus:ring-blue-500 outline-none"
           />
         </div>
 
         <div className="grid md:grid-cols-2 gap-5">
           <div>
-            <label className="block text-gray-700 font-semibold mb-2">
+            <label htmlFor="task-status" className="block text-gray-700 font-semibold mb-2">
               Status
             </label>
 
             <select
+              id="task-status"
               value={status}
-              onChange={(e) => setStatus(e.target.value)}
+              onChange={(e) => setStatus(e.target.value as Task["status"])}
               className="w-full rounded-xl border border-gray-300 px-4 py-3 focus:ring-2 focus:ring-blue-500 outline-none"
             >
               <option value="TODO">📝 TODO</option>
@@ -126,26 +135,44 @@ const TaskForm = ({ onTaskCreated, editingTask }: TaskFormProps) => {
           </div>
 
           <div>
-            <label className="block text-gray-700 font-semibold mb-2">
+            <label htmlFor="task-due-date" className="block text-gray-700 font-semibold mb-2">
               Due Date
             </label>
 
             <input
+              id="task-due-date"
               type="date"
               value={dueDate}
-              min={new Date().toISOString().split("T")[0]}
+              // New tasks can't be due in the past; existing overdue tasks stay editable
+              min={editingTask ? undefined : todayLocal()}
               onChange={(e) => setDueDate(e.target.value)}
               className="w-full rounded-xl border border-gray-300 px-4 py-3 focus:ring-2 focus:ring-blue-500 outline-none"
             />
           </div>
         </div>
 
-        <button
-          type="submit"
-          className="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 rounded-xl transition duration-300"
-        >
-          {editingTask ? "Update Task" : "Create Task"}
-        </button>
+        <div className="flex gap-3">
+          <button
+            type="submit"
+            disabled={saving}
+            className="flex-1 bg-blue-600 hover:bg-blue-700 disabled:opacity-60 text-white font-semibold py-3 rounded-xl transition duration-300"
+          >
+            {saving ? "Saving..." : editingTask ? "Update Task" : "Create Task"}
+          </button>
+
+          {editingTask && onCancelEdit && (
+            <button
+              type="button"
+              onClick={() => {
+                resetForm();
+                onCancelEdit();
+              }}
+              className="px-6 bg-gray-200 hover:bg-gray-300 text-gray-800 font-semibold py-3 rounded-xl transition duration-300"
+            >
+              Cancel
+            </button>
+          )}
+        </div>
       </form>
     </div>
   );

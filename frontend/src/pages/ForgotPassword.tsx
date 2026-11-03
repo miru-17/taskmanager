@@ -16,11 +16,15 @@ const ForgotPassword = () => {
     try {
       setLoading(true);
 
-      await api.post("/auth/forgot-password", {
+      const response = await api.post("/auth/forgot-password", {
         email,
       });
 
-      toast.success("Reset link sent to your email");
+      // The server deliberately gives the same answer for unknown emails
+      toast.success(
+        response.data?.message ||
+          "If an account exists for that email, a reset link has been sent."
+      );
     } catch (error: any) {
       toast.error(
         error.response?.data?.message ||

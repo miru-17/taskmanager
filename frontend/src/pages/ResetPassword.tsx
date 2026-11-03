@@ -25,7 +25,7 @@ const ResetPassword = () => {
         );
 
         setEmail(response.data.email);
-      } catch (error) {
+      } catch {
         toast.error("Invalid or expired reset link");
         navigate("/login");
       }
