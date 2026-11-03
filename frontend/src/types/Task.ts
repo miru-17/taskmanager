@@ -303,3 +303,59 @@ export interface SavedView {
 /** Display name for a user: their name, else the part of the email before @. */
 export const displayName = (u: UserRef | { name: string | null; email: string } | null | undefined) =>
   u ? u.name || u.email.split("@")[0] : "Unassigned";
+
+// ─── Phase 4: collaboration ──────────────────────────────────────────────────
+
+export const REACTIONS = ["👍", "👎", "🎉", "❤️", "😄", "👀", "🚀", "✅"] as const;
+export type Reaction = (typeof REACTIONS)[number];
+
+export interface Comment {
+  id: string;
+  parentId: string | null;
+  /** Text with a small markdown subset; mentions are @[Name](user:ID) */
+  body: string;
+  deleted: boolean;
+  editedAt: string | null;
+  createdAt: string;
+  author: UserRef | null;
+  reactions: { emoji: Reaction; count: number; mine: boolean }[];
+}
+export interface CommentThread extends Comment {
+  replies: Comment[];
+}
+
+export type NotificationType = "MENTIONED" | "COMMENTED" | "ASSIGNED" | "STATUS_CHANGED" | "APPROVAL_REQUESTED" | "APPROVAL_DECIDED" | "DUE_SOON";
+export const NOTIFICATION_LABELS: Record<NotificationType, string> = {
+  MENTIONED: "Someone mentions you",
+  COMMENTED: "New comments on tasks you watch",
+  ASSIGNED: "A task is assigned to you",
+  STATUS_CHANGED: "Status changes on tasks you watch",
+  APPROVAL_REQUESTED: "Your approval is requested",
+  APPROVAL_DECIDED: "Your approval request is decided",
+  DUE_SOON: "A task assigned to you is due tomorrow",
+};
+
+export interface AppNotification {
+  id: string;
+  type: NotificationType;
+  taskId: number | null;
+  readAt: string | null;
+  createdAt: string;
+  actor: UserRef | null;
+  data: {
+    key: string;
+    title: string;
+    projectId: string;
+    projectName: string;
+    actorName: string;
+    excerpt?: string;
+    from?: TaskStatus;
+    to?: TaskStatus;
+    outcome?: "APPROVED" | "REJECTED";
+    completed?: boolean;
+  };
+}
+
+export type FeedItem =
+  | { kind: "activity"; id: string; type: string; changes: Record<string, unknown> | null; createdAt: string; actor: UserRef | null; task: { id: number; key: string; title: string } }
+  | { kind: "comment"; id: string; excerpt: string; createdAt: string; actor: UserRef | null; task: { id: number; key: string; title: string } };

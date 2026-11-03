@@ -17,6 +17,10 @@ import type {
   CustomField,
   TemplateSummary,
   ApprovalListItem,
+  CommentThread,
+  AppNotification,
+  NotificationType,
+  FeedItem,
 } from "../types/Task";
 import { useAuth } from "../context/AuthContext";
 
@@ -330,5 +334,58 @@ export const useStorageUsage = (enabled: boolean) => {
       (await api.get<{ usedBytes: number; files: number; quotaBytes: number; maxFileBytes: number; allowedExtensions: string[] }>("/attachments/usage")).data,
     enabled,
     staleTime: 60_000,
+  });
+};
+
+// ─── Phase 4: comments, notifications, feed ──────────────────────────────────
+
+export const commentKeys = { task: (org: string, taskId: number) => ["org", org, "tasks", "comments", taskId] as const };
+
+export const useComments = (taskId: number) => {
+  const org = useOrgKey();
+  return useQuery({
+    queryKey: commentKeys.task(org, taskId),
+    queryFn: async () => (await api.get<CommentThread[]>(`/tasks/${taskId}/comments`)).data,
+  });
+};
+
+export const useNotifications = (enabled: boolean) => {
+  const org = useOrgKey();
+  return useQuery({
+    queryKey: ["org", org, "notifications", "list"],
+    queryFn: async () => (await api.get<{ items: AppNotification[]; nextCursor: string | null }>("/notifications", { params: { limit: 30 } })).data,
+    enabled,
+  });
+};
+
+export const useUnreadCount = () => {
+  const org = useOrgKey();
+  return useQuery({
+    queryKey: ["org", org, "notifications", "count"],
+    queryFn: async () => (await api.get<{ unread: number }>("/notifications/count")).data.unread,
+    // Live events refresh this; the interval is only a fallback if the stream is down
+    refetchInterval: 120_000,
+  });
+};
+
+export const useNotificationAction = <V,>(fn: (vars: V) => Promise<unknown>) => {
+  const qc = useQueryClient();
+  const org = useOrgKey();
+  return useMutation({ mutationFn: fn, onSuccess: () => qc.invalidateQueries({ queryKey: ["org", org, "notifications"] }) });
+};
+
+export const useNotificationPrefs = () => {
+  const org = useOrgKey();
+  return useQuery({
+    queryKey: ["org", org, "notifications", "prefs"],
+    queryFn: async () => (await api.get<{ emailTypes: NotificationType[]; emailConfigured: boolean }>("/notifications/preferences")).data,
+  });
+};
+
+export const useProjectFeed = (projectId: string) => {
+  const org = useOrgKey();
+  return useQuery({
+    queryKey: ["org", org, "tasks", "feed", projectId],
+    queryFn: async () => (await api.get<FeedItem[]>(`/projects/${projectId}/activity`, { params: { limit: 30 } })).data,
   });
 };

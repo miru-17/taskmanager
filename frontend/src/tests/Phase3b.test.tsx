@@ -200,9 +200,8 @@ describe("Attachments", () => {
     await openDrawer();
     const file = new File(["%PDF-1.4"], "spec.pdf", { type: "application/pdf" });
     await userEvent.upload(screen.getByLabelText("Choose a file to upload"), file);
-    await waitFor(() => expect(apiMock.post).toHaveBeenCalled());
-    const [url, body] = apiMock.post.mock.calls[0];
-    expect(url).toBe("/tasks/90/attachments");
+    await waitFor(() => expect(apiMock.post.mock.calls.some(([u]) => u === "/tasks/90/attachments")).toBe(true));
+    const [, body] = apiMock.post.mock.calls.find(([u]) => u === "/tasks/90/attachments")!;
     expect((body as FormData).get("file")).toBe(file);
   });
 

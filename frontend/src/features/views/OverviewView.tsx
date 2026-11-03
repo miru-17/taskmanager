@@ -1,5 +1,7 @@
 import { Flag } from "lucide-react";
-import { useMilestones, useProjectMembers, useTasks } from "../../data/queries";
+import { useMilestones, useProjectFeed, useProjectMembers, useTasks } from "../../data/queries";
+import { describe } from "../tasks/activityText";
+import { timeAgo } from "../../data/dates";
 import { addDays, formatDay, todayKey, toDateInput } from "../../data/dates";
 import { STATUSES, STATUS_LABELS, displayName, type TaskStatus } from "../../types/Task";
 import { Avatar, HealthBadge, Progress, StatusIcon } from "../../ui";
@@ -25,6 +27,39 @@ const StatusCount = ({ projectId, status }: { projectId: string; status: TaskSta
       <span className="flex-1 text-fg-soft">{STATUS_LABELS[status]}</span>
       <span className="tabular-nums">{data?.total ?? "…"}</span>
     </div>
+  );
+};
+
+
+const RecentActivity = ({ projectId }: { projectId: string }) => {
+  const { data } = useProjectFeed(projectId);
+  const { openTask } = useTaskParam();
+  return (
+    <section className="rounded-xl border border-line bg-surface shadow-card">
+      <h2 className="border-b border-line px-4 py-3 font-medium">Recent activity</h2>
+      {data?.length ? (
+        <ol className="divide-y divide-line">
+          {data.slice(0, 15).map((f) => (
+            <li key={`${f.kind}-${f.id}`}>
+              <button type="button" onClick={() => openTask(f.task.id)} className="flex w-full gap-2.5 px-4 py-2.5 text-left hover:bg-elev">
+                <Avatar user={f.actor} size={22} />
+                <span className="min-w-0 flex-1 text-sm">
+                  <span className="font-medium">{f.actor ? displayName(f.actor) : "Someone"}</span>{" "}
+                  <span className="text-fg-soft">{f.kind === "comment" ? "commented on" : describe(f)[0]}</span>{" "}
+                  <span className="text-xs text-muted">{f.task.key}</span> <span className="truncate">{f.task.title}</span>
+                  {f.kind === "comment" && <span className="mt-0.5 block truncate text-xs text-muted">“{f.excerpt}”</span>}
+                </span>
+                <time className="shrink-0 text-xs text-muted" dateTime={f.createdAt}>
+                  {timeAgo(f.createdAt)}
+                </time>
+              </button>
+            </li>
+          ))}
+        </ol>
+      ) : (
+        <p className="px-4 py-6 text-sm text-muted">Nothing has happened here yet.</p>
+      )}
+    </section>
   );
 };
 
@@ -105,6 +140,8 @@ const OverviewView = () => {
             )}
           </section>
         </div>
+
+        <RecentActivity projectId={project.id} />
 
         <div className="grid gap-4 lg:grid-cols-3">
           <section className="rounded-xl border border-line bg-surface p-5 shadow-card lg:col-span-2">

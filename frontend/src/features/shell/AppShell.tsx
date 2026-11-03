@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { NavLink, Outlet, useLocation, useNavigate } from "react-router-dom";
 import toast from "react-hot-toast";
-import { BadgeCheck, Building2, ChevronsUpDown, FolderKanban, ListChecks, LogOut, Menu, Moon, Plus, Shield, Sun, Users, X } from "lucide-react";
+import { BadgeCheck, BellRing, Building2, ChevronsUpDown, FolderKanban, ListChecks, LogOut, Menu, Moon, Plus, Shield, Sun, Users, X } from "lucide-react";
 import { useAuth } from "../../context/AuthContext";
 import { useTheme } from "../../context/ThemeContext";
 import { useApprovalCount, useProjects } from "../../data/queries";
@@ -11,6 +11,8 @@ import { displayName } from "../../types/Task";
 import { Avatar, IconButton } from "../../ui";
 import { cx } from "../../ui/cx";
 import TaskDrawer from "../tasks/TaskDrawer";
+import NotificationBell from "../notifications/NotificationBell";
+import { useLiveUpdates, type LiveState } from "../../data/live";
 import TaskComposer from "../tasks/TaskComposer";
 import { ComposerProvider, useComposer } from "../tasks/composer";
 
@@ -58,7 +60,9 @@ const OrgSwitcher = () => {
   );
 };
 
-const Sidebar = ({ onNavigate }: { onNavigate?: () => void }) => {
+const LIVE_LABEL: Record<LiveState, string> = { live: "Live updates on", connecting: "Connecting for live updates…", offline: "Live updates paused; reconnecting" };
+
+const Sidebar = ({ onNavigate, live }: { onNavigate?: () => void; live: LiveState }) => {
   const { user, organization, logout, can } = useAuth();
   const { theme, toggle } = useTheme();
   const { data: projects } = useProjects();
@@ -68,7 +72,12 @@ const Sidebar = ({ onNavigate }: { onNavigate?: () => void }) => {
 
   return (
     <nav aria-label="Main" className="flex h-full flex-col gap-1 p-3" onClick={(e) => (e.target as HTMLElement).closest("a") && onNavigate?.()}>
-      <OrgSwitcher />
+      <div className="flex items-center gap-1">
+        <div className="min-w-0 flex-1">
+          <OrgSwitcher />
+        </div>
+        <NotificationBell />
+      </div>
 
       {can("tasks:create") && (
         <button
@@ -123,6 +132,13 @@ const Sidebar = ({ onNavigate }: { onNavigate?: () => void }) => {
         <NavLink to="/settings/security" className={navItem}>
           <Shield className="size-4" aria-hidden /> Security
         </NavLink>
+        <NavLink to="/settings/notifications" className={navItem}>
+          <BellRing className="size-4" aria-hidden /> Notifications
+        </NavLink>
+        <p className="flex items-center gap-2 px-2.5 pt-1 text-[11px] text-muted" role="status" aria-live="polite">
+          <span className={cx("size-1.5 rounded-full", live === "live" ? "bg-success" : live === "connecting" ? "bg-warning" : "bg-muted")} aria-hidden />
+          {LIVE_LABEL[live]}
+        </p>
         <div className="flex items-center gap-2 px-2.5 pt-2">
           <Avatar user={user} size={26} />
           <span className="min-w-0 flex-1 truncate text-sm text-fg-soft">{user ? displayName(user) : ""}</span>
@@ -160,13 +176,14 @@ const useShortcuts = () => {
 const ShellInner = () => {
   const [mobileOpen, setMobileOpen] = useState(false);
   const location = useLocation();
+  const live = useLiveUpdates();
   useShortcuts();
   useEffect(() => setMobileOpen(false), [location.pathname]);
 
   return (
     <div className="flex h-dvh overflow-hidden bg-app text-fg">
       <aside className="hidden w-60 shrink-0 border-r border-line bg-surface md:block">
-        <Sidebar />
+        <Sidebar live={live} />
       </aside>
 
       {mobileOpen && (
@@ -177,7 +194,7 @@ const ShellInner = () => {
                 <X className="size-4" />
               </IconButton>
             </div>
-            <Sidebar onNavigate={() => setMobileOpen(false)} />
+            <Sidebar live={live} onNavigate={() => setMobileOpen(false)} />
           </aside>
         </div>
       )}
