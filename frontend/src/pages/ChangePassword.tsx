@@ -50,37 +50,40 @@ const ChangePassword = () => {
   };
 
   return (
-    <div className="min-h-screen bg-slate-950 flex justify-center items-center">
-      <div className="bg-slate-900 p-8 rounded-3xl w-full max-w-md shadow-xl">
+    <div className="min-h-screen bg-app flex justify-center items-center">
+      <div className="bg-surface p-8 rounded-3xl w-full max-w-md shadow-xl">
 
-        <h1 className="text-3xl font-bold text-white mb-8 text-center">
+        <h1 className="text-3xl font-bold text-fg mb-8 text-center">
           Change Password
         </h1>
 
         <form onSubmit={handleSubmit} className="space-y-5">
 
           <input
+            aria-label="Current Password"
             type="password"
             placeholder="Current Password"
-            className="w-full p-3 rounded-xl bg-slate-800 text-white border border-slate-700"
+            className="w-full p-3 rounded-xl bg-elev text-fg border border-line"
             value={currentPassword}
             onChange={(e) => setCurrentPassword(e.target.value)}
             required
           />
 
           <input
+            aria-label="New Password"
             type="password"
             placeholder="New Password"
-            className="w-full p-3 rounded-xl bg-slate-800 text-white border border-slate-700"
+            className="w-full p-3 rounded-xl bg-elev text-fg border border-line"
             value={newPassword}
             onChange={(e) => setNewPassword(e.target.value)}
             required
           />
 
           <input
+            aria-label="Confirm New Password"
             type="password"
             placeholder="Confirm New Password"
-            className="w-full p-3 rounded-xl bg-slate-800 text-white border border-slate-700"
+            className="w-full p-3 rounded-xl bg-elev text-fg border border-line"
             value={confirmPassword}
             onChange={(e) => setConfirmPassword(e.target.value)}
             required
@@ -88,7 +91,7 @@ const ChangePassword = () => {
 
           <button
             disabled={loading}
-            className="w-full bg-cyan-500 hover:bg-cyan-600 py-3 rounded-xl text-white font-semibold"
+            className="w-full bg-accent hover:bg-accent-hover py-3 rounded-xl text-accent-fg font-semibold"
           >
             {loading ? "Updating..." : "Update Password"}
           </button>
@@ -97,7 +100,7 @@ const ChangePassword = () => {
         <button
   type="button"
   onClick={() => navigate("/")}
-  className="w-full mt-3 border border-slate-700 py-3 rounded-xl text-slate-300 hover:bg-slate-800"
+  className="w-full mt-3 border border-line py-3 rounded-xl text-fg-soft hover:bg-elev"
 >
   Back
 </button>

@@ -51,33 +51,33 @@ const AcceptInvite = () => {
   const wrongAccount = status === "authenticated" && preview && user?.email !== preview.email;
 
   return (
-    <div className="min-h-screen bg-slate-950 flex items-center justify-center p-4">
-      <div className="w-full max-w-md rounded-3xl bg-slate-900 border border-slate-800 p-8 text-center">
+    <div className="min-h-screen bg-app flex items-center justify-center p-4">
+      <div className="w-full max-w-md rounded-3xl bg-surface border border-line p-8 text-center">
         {error ? (
           <>
-            <h1 className="text-2xl font-bold text-white">Invitation unavailable</h1>
-            <p className="text-slate-300 mt-3">{error}</p>
-            <p className="text-slate-400 mt-2 text-sm">Ask the person who invited you to send a new one.</p>
-            <Link to="/" className="inline-block mt-8 text-cyan-400 hover:underline">
+            <h1 className="text-2xl font-bold text-fg">Invitation unavailable</h1>
+            <p className="text-fg-soft mt-3">{error}</p>
+            <p className="text-muted mt-2 text-sm">Ask the person who invited you to send a new one.</p>
+            <Link to="/" className="inline-block mt-8 text-accent hover:underline">
               Go to TaskForge
             </Link>
           </>
         ) : (
           preview && (
             <>
-              <p className="text-slate-400 text-sm uppercase tracking-widest">You're invited</p>
-              <h1 className="text-2xl font-bold text-white mt-2">{preview.organizationName}</h1>
-              <p className="text-slate-300 mt-3">
+              <p className="text-muted text-sm uppercase tracking-widest">You're invited</p>
+              <h1 className="text-2xl font-bold text-fg mt-2">{preview.organizationName}</h1>
+              <p className="text-fg-soft mt-3">
                 {preview.invitedBy ? `${preview.invitedBy} invited ` : "You've been invited "}
-                <span className="text-white font-medium">{preview.email}</span> to join as{" "}
-                <span className="text-cyan-300 font-medium">{ROLE_LABELS[preview.role]}</span>.
+                <span className="text-fg font-medium">{preview.email}</span> to join as{" "}
+                <span className="text-accent font-medium">{ROLE_LABELS[preview.role]}</span>.
               </p>
 
               {status === "authenticated" && !wrongAccount && (
                 <button
                   onClick={accept}
                   disabled={accepting}
-                  className="mt-8 w-full py-3 rounded-xl bg-cyan-500 hover:bg-cyan-600 text-white font-semibold disabled:opacity-60"
+                  className="mt-8 w-full py-3 rounded-xl bg-accent hover:bg-accent-hover text-accent-fg font-semibold disabled:opacity-60"
                 >
                   {accepting ? "Joining…" : `Join ${preview.organizationName}`}
                 </button>
@@ -85,12 +85,12 @@ const AcceptInvite = () => {
 
               {wrongAccount && (
                 <div className="mt-8 space-y-3">
-                  <p className="text-amber-300 text-sm">
+                  <p className="text-warning text-sm">
                     You're signed in as {user?.email}. This invitation is for {preview.email}.
                   </p>
                   <button
                     onClick={() => logout()}
-                    className="w-full py-3 rounded-xl border border-slate-700 text-slate-200 hover:bg-slate-800"
+                    className="w-full py-3 rounded-xl border border-line text-fg-soft hover:bg-elev"
                   >
                     Sign out and switch account
                   </button>
@@ -103,14 +103,14 @@ const AcceptInvite = () => {
                     <Link
                       to="/login"
                       state={{ from: here }}
-                      className="block w-full py-3 rounded-xl bg-cyan-500 hover:bg-cyan-600 text-white font-semibold"
+                      className="block w-full py-3 rounded-xl bg-accent hover:bg-accent-hover text-accent-fg font-semibold"
                     >
                       Sign in to accept
                     </Link>
                   ) : (
                     <Link
                       to={`/register?invite=${token}&email=${encodeURIComponent(preview.email)}`}
-                      className="block w-full py-3 rounded-xl bg-cyan-500 hover:bg-cyan-600 text-white font-semibold"
+                      className="block w-full py-3 rounded-xl bg-accent hover:bg-accent-hover text-accent-fg font-semibold"
                     >
                       Create account and join
                     </Link>

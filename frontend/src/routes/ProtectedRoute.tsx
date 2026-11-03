@@ -3,9 +3,9 @@ import type { ReactNode } from "react";
 import { useAuth } from "../context/AuthContext";
 
 export const FullPageSpinner = ({ label = "Loading…" }: { label?: string }) => (
-  <div className="min-h-screen bg-slate-950 flex flex-col items-center justify-center" role="status" aria-live="polite">
-    <div className="w-14 h-14 rounded-full border-4 border-cyan-500 border-t-transparent animate-spin" />
-    <p className="mt-6 text-slate-300">{label}</p>
+  <div className="min-h-screen bg-app flex flex-col items-center justify-center" role="status" aria-live="polite">
+    <div className="w-14 h-14 rounded-full border-4 border-accent border-t-transparent animate-spin" />
+    <p className="mt-6 text-fg-soft">{label}</p>
   </div>
 );
 

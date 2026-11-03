@@ -53,27 +53,29 @@ const Login = () => {
     >
       <div className="min-h-screen flex items-center justify-center bg-black/60">
 
-        <div className="w-full max-w-md bg-slate-900/80 backdrop-blur-md rounded-3xl p-8 shadow-2xl border border-slate-700">
+        <div className="w-full max-w-md bg-surface backdrop-blur-md rounded-3xl p-8 shadow-2xl border border-line">
 
-          <h1 className="text-3xl font-bold text-white text-center mb-8">
+          <h1 className="text-3xl font-bold text-fg text-center mb-8">
             Login
           </h1>
 
           <form onSubmit={handleLogin} className="space-y-5">
 
             <input
+              aria-label="Email"
               type="email"
               placeholder="Email"
-              className="w-full p-3 rounded-xl bg-slate-800 text-white border border-slate-700 focus:outline-none focus:ring-2 focus:ring-cyan-500"
+              className="w-full p-3 rounded-xl bg-elev text-fg border border-line focus:outline-none focus:ring-2 focus:ring-accent"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               required
             />
 
             <input
+              aria-label="Password"
               type="password"
               placeholder="Password"
-              className="w-full p-3 rounded-xl bg-slate-800 text-white border border-slate-700 focus:outline-none focus:ring-2 focus:ring-cyan-500"
+              className="w-full p-3 rounded-xl bg-elev text-fg border border-line focus:outline-none focus:ring-2 focus:ring-accent"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               required
@@ -82,7 +84,7 @@ const Login = () => {
             <div className="text-right">
               <Link
                 to="/forgot-password"
-                className="text-sm text-cyan-400 hover:underline"
+                className="text-sm text-accent hover:underline"
               >
                 Forgot Password?
               </Link>
@@ -91,19 +93,19 @@ const Login = () => {
             <button
               type="submit"
               disabled={loading}
-              className="w-full bg-cyan-500 hover:bg-cyan-600 text-white py-3 rounded-xl font-semibold transition duration-300"
+              className="w-full bg-accent hover:bg-accent-hover text-accent-fg py-3 rounded-xl font-semibold transition duration-300"
             >
               {loading ? "Logging in..." : "Login"}
             </button>
 
           </form>
 
-          <p className="text-slate-300 mt-6 text-center">
+          <p className="text-fg-soft mt-6 text-center">
             Don't have an account?{" "}
             <Link
               to="/register"
               state={{ from }}
-              className="text-cyan-400 hover:underline"
+              className="text-accent hover:underline"
             >
               Register
             </Link>

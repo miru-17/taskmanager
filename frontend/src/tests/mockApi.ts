@@ -42,12 +42,13 @@ export const apiModule = {
   isSessionExpiry: () => false,
 };
 
+const WORKER: Permission[] = ["tasks:read", "tasks:create", "tasks:update_any", "tasks:delete_any", "labels:manage"];
 const ROLE_PERMS: Record<OrgRole, Permission[]> = {
-  ORG_ADMIN: ["org:read", "org:update", "members:read", "members:invite", "members:manage", "invitations:manage", "audit:read", "tasks:read", "tasks:create", "tasks:update_any", "tasks:delete_any"],
-  PROJECT_MANAGER: ["org:read", "members:read", "members:invite", "invitations:manage", "tasks:read", "tasks:create", "tasks:update_any", "tasks:delete_any"],
-  TEAM_LEAD: ["org:read", "members:read", "tasks:read", "tasks:create", "tasks:update_any", "tasks:delete_any"],
+  ORG_ADMIN: ["org:read", "org:update", "members:read", "members:invite", "members:manage", "invitations:manage", "audit:read", "projects:create", "projects:manage_any", "teams:manage", ...WORKER],
+  PROJECT_MANAGER: ["org:read", "members:read", "members:invite", "invitations:manage", "projects:create", "projects:manage_any", "teams:manage", ...WORKER],
+  TEAM_LEAD: ["org:read", "members:read", ...WORKER],
   MEMBER: ["org:read", "members:read", "tasks:read", "tasks:create", "tasks:update_own", "tasks:delete_own"],
-  CLIENT: ["org:read"],
+  CLIENT: ["org:read", "tasks:read"],
   VIEWER: ["org:read", "members:read", "tasks:read"],
 };
 

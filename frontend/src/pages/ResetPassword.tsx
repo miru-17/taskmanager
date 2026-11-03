@@ -78,13 +78,13 @@ const ResetPassword = () => {
     >
       <div className="min-h-screen flex items-center justify-center bg-black/60">
 
-        <div className="w-full max-w-md bg-slate-900/80 backdrop-blur-md rounded-3xl p-8 shadow-2xl border border-slate-700">
+        <div className="w-full max-w-md bg-surface backdrop-blur-md rounded-3xl p-8 shadow-2xl border border-line">
 
-          <h1 className="text-3xl font-bold text-white text-center mb-2">
+          <h1 className="text-3xl font-bold text-fg text-center mb-2">
             Reset Password
           </h1>
 
-          <p className="text-slate-300 text-center mb-8">
+          <p className="text-fg-soft text-center mb-8">
             Create your new password
           </p>
 
@@ -98,44 +98,46 @@ const ResetPassword = () => {
               type="email"
               value={email}
               readOnly
-              className="w-full p-3 rounded-xl bg-slate-800 text-slate-400 border border-slate-700 cursor-not-allowed"
+              className="w-full p-3 rounded-xl bg-elev text-muted border border-line cursor-not-allowed"
             />
 
             {/* New Password */}
             <input
+              aria-label="New Password"
               type="password"
               placeholder="New Password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              className="w-full p-3 rounded-xl bg-slate-800 text-white border border-slate-700 focus:outline-none focus:ring-2 focus:ring-cyan-500"
+              className="w-full p-3 rounded-xl bg-elev text-fg border border-line focus:outline-none focus:ring-2 focus:ring-accent"
               required
             />
 
             {/* Confirm Password */}
             <input
+              aria-label="Confirm Password"
               type="password"
               placeholder="Confirm Password"
               value={confirmPassword}
               onChange={(e) => setConfirmPassword(e.target.value)}
-              className="w-full p-3 rounded-xl bg-slate-800 text-white border border-slate-700 focus:outline-none focus:ring-2 focus:ring-cyan-500"
+              className="w-full p-3 rounded-xl bg-elev text-fg border border-line focus:outline-none focus:ring-2 focus:ring-accent"
               required
             />
 
             <button
               type="submit"
               disabled={loading}
-              className="w-full bg-cyan-500 hover:bg-cyan-600 transition duration-300 text-white py-3 rounded-xl font-semibold"
+              className="w-full bg-accent hover:bg-accent-hover transition duration-300 text-accent-fg py-3 rounded-xl font-semibold"
             >
               {loading ? "Resetting..." : "Reset Password"}
             </button>
 
           </form>
 
-          <p className="text-slate-300 text-center mt-6">
+          <p className="text-fg-soft text-center mt-6">
             Remember your password?{" "}
             <Link
               to="/login"
-              className="text-cyan-400 hover:underline"
+              className="text-accent hover:underline"
             >
               Login
             </Link>

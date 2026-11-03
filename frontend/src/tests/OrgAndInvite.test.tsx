@@ -4,7 +4,7 @@ import { MemoryRouter, Route, Routes } from "react-router-dom";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import OrganizationSettings from "../pages/OrganizationSettings";
 import AcceptInvite from "../pages/AcceptInvite";
-import { AuthProvider } from "../context/AuthContext";
+import { TestProviders } from "./providers";
 import { assignableRoles } from "../types/auth";
 import { apiMock, makeSession, resetApiMock, restoreAs } from "./mockApi";
 
@@ -27,9 +27,9 @@ const stubOrgEndpoints = () =>
 const renderOrg = () =>
   render(
     <MemoryRouter>
-      <AuthProvider>
+      <TestProviders>
         <OrganizationSettings />
-      </AuthProvider>
+      </TestProviders>
     </MemoryRouter>
   );
 
@@ -109,12 +109,12 @@ describe("Accept invitation page", () => {
   const renderInvite = () =>
     render(
       <MemoryRouter initialEntries={[`/invite/${"a".repeat(64)}`]}>
-        <AuthProvider>
+        <TestProviders>
           <Routes>
             <Route path="/invite/:token" element={<AcceptInvite />} />
             <Route path="/" element={<p>home page</p>} />
           </Routes>
-        </AuthProvider>
+        </TestProviders>
       </MemoryRouter>
     );
 

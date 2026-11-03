@@ -1,1 +1,109 @@
 @import "tailwindcss";
+@import "@fontsource-variable/inter";
+
+/*
+ * Design tokens. Components use semantic classes (bg-surface, text-muted, border-line,
+ * bg-accent …) so light and dark themes are one attribute switch on <html>.
+ */
+:root {
+  --app: #f6f7f9;
+  --surface: #ffffff;
+  --elev: #f1f3f6;
+  --elev-2: #e6e9ef;
+  --line: #e2e5ea;
+  --line-strong: #cdd2da;
+  --fg: #12151b;
+  --fg-soft: #343a46;
+  --muted: #6b7280;
+  --accent: #4f46e5;
+  --accent-hover: #4338ca;
+  --accent-fg: #ffffff;
+  --danger: #dc2626;
+  --warning: #b45309;
+  --success: #15803d;
+  --info: #0369a1;
+  --shadow: 0 1px 2px rgb(16 24 40 / 0.06), 0 1px 3px rgb(16 24 40 / 0.08);
+  --shadow-lg: 0 12px 32px rgb(16 24 40 / 0.14);
+  color-scheme: light;
+}
+
+:root[data-theme="dark"] {
+  --app: #0b0d12;
+  --surface: #12151c;
+  --elev: #1a1e27;
+  --elev-2: #232836;
+  --line: #262b37;
+  --line-strong: #353c4c;
+  --fg: #eceef3;
+  --fg-soft: #c5cad5;
+  --muted: #8a92a3;
+  --accent: #7c74ff;
+  --accent-hover: #918aff;
+  --accent-fg: #0b0d12;
+  --danger: #f87171;
+  --warning: #fbbf24;
+  --success: #4ade80;
+  --info: #38bdf8;
+  --shadow: 0 1px 2px rgb(0 0 0 / 0.4);
+  --shadow-lg: 0 16px 40px rgb(0 0 0 / 0.5);
+  color-scheme: dark;
+}
+
+@theme inline {
+  --font-sans: "Inter Variable", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+  --color-app: var(--app);
+  --color-surface: var(--surface);
+  --color-elev: var(--elev);
+  --color-elev-2: var(--elev-2);
+  --color-line: var(--line);
+  --color-line-strong: var(--line-strong);
+  --color-fg: var(--fg);
+  --color-fg-soft: var(--fg-soft);
+  --color-muted: var(--muted);
+  --color-accent: var(--accent);
+  --color-accent-hover: var(--accent-hover);
+  --color-accent-fg: var(--accent-fg);
+  --color-danger: var(--danger);
+  --color-warning: var(--warning);
+  --color-success: var(--success);
+  --color-info: var(--info);
+  --shadow-card: var(--shadow);
+  --shadow-pop: var(--shadow-lg);
+}
+
+html,
+body {
+  background: var(--app);
+  color: var(--fg);
+  font-family: var(--font-sans);
+  font-feature-settings: "cv11", "ss01";
+  -webkit-font-smoothing: antialiased;
+}
+
+* {
+  border-color: var(--line);
+}
+
+::selection {
+  background: color-mix(in srgb, var(--accent) 30%, transparent);
+}
+
+:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+/* Thin, theme-aware scrollbars for board columns and timelines */
+.scroll-thin {
+  scrollbar-width: thin;
+  scrollbar-color: var(--line-strong) transparent;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}

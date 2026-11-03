@@ -1,6 +1,5 @@
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 
-import Home from "./pages/Home";
 import Login from "./pages/Login";
 import Register from "./pages/Register";
 import ChangePassword from "./pages/ChangePassword";
@@ -12,6 +11,17 @@ import OrganizationSettings from "./pages/OrganizationSettings";
 import SecuritySettings from "./pages/SecuritySettings";
 
 import ProtectedRoute, { FullPageSpinner } from "./routes/ProtectedRoute";
+import AppShell from "./features/shell/AppShell";
+import MyTasks from "./features/pages/MyTasks";
+import Projects from "./features/pages/Projects";
+import Teams from "./features/pages/Teams";
+import ProjectLayout, { ProjectIndex } from "./features/projects/ProjectLayout";
+import OverviewView from "./features/views/OverviewView";
+import BoardView from "./features/views/BoardView";
+import ListView from "./features/views/ListView";
+import CalendarView from "./features/views/CalendarView";
+import TimelineView from "./features/views/TimelineView";
+import SettingsView from "./features/views/SettingsView";
 import { useAuth } from "./context/AuthContext";
 import type { ReactNode } from "react";
 
@@ -27,10 +37,24 @@ const protectedPage = (page: ReactNode) => <ProtectedRoute>{page}</ProtectedRout
 export function AppRoutes() {
   return (
     <Routes>
-      <Route path="/" element={protectedPage(<Home />)} />
-      <Route path="/change-password" element={protectedPage(<ChangePassword />)} />
-      <Route path="/settings/organization" element={protectedPage(<OrganizationSettings />)} />
-      <Route path="/settings/security" element={protectedPage(<SecuritySettings />)} />
+      <Route element={protectedPage(<AppShell />)}>
+        <Route index element={<Navigate to="/my-tasks" replace />} />
+        <Route path="my-tasks" element={<MyTasks />} />
+        <Route path="projects" element={<Projects />} />
+        <Route path="projects/:projectId" element={<ProjectLayout />}>
+          <Route index element={<ProjectIndex />} />
+          <Route path="overview" element={<OverviewView />} />
+          <Route path="board" element={<BoardView />} />
+          <Route path="list" element={<ListView />} />
+          <Route path="calendar" element={<CalendarView />} />
+          <Route path="timeline" element={<TimelineView />} />
+          <Route path="settings" element={<SettingsView />} />
+        </Route>
+        <Route path="teams" element={<Teams />} />
+        <Route path="change-password" element={<ChangePassword />} />
+        <Route path="settings/organization" element={<OrganizationSettings />} />
+        <Route path="settings/security" element={<SecuritySettings />} />
+      </Route>
 
       <Route path="/login" element={<GuestOnly><Login /></GuestOnly>} />
       <Route path="/register" element={<GuestOnly><Register /></GuestOnly>} />

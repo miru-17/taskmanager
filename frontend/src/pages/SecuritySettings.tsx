@@ -83,10 +83,10 @@ const SecuritySettings = () => {
     <PageShell title="Security" subtitle={user?.email}>
       <Card title="Email address">
         {user?.emailVerified ? (
-          <p className="text-emerald-300">✓ {user.email} is verified.</p>
+          <p className="text-success">✓ {user.email} is verified.</p>
         ) : (
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-            <p className="text-amber-300">{user?.email} isn't verified yet.</p>
+            <p className="text-warning">{user?.email} isn't verified yet.</p>
             <button className={primaryButton} onClick={() => void resend()} disabled={busy}>
               Resend verification email
             </button>
@@ -102,7 +102,7 @@ const SecuritySettings = () => {
           </Link>
         }
       >
-        <p className="text-slate-400">Changing your password signs out every other device.</p>
+        <p className="text-muted">Changing your password signs out every other device.</p>
       </Card>
 
       <Card
@@ -116,19 +116,19 @@ const SecuritySettings = () => {
         {loading ? (
           <div className="space-y-3" aria-busy="true">
             {[0, 1].map((i) => (
-              <div key={i} className="h-14 rounded-xl bg-slate-800 animate-pulse" />
+              <div key={i} className="h-14 rounded-xl bg-elev animate-pulse" />
             ))}
           </div>
         ) : (
-          <ul className="divide-y divide-slate-800">
+          <ul className="divide-y divide-line">
             {sessions.map((s) => (
               <li key={s.id} className="py-3 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
                 <div>
                   <p className="font-medium">
                     {describeDevice(s.userAgent)}
-                    {s.current && <span className="ml-2 text-xs px-2 py-0.5 rounded-full bg-cyan-500/20 text-cyan-300">This device</span>}
+                    {s.current && <span className="ml-2 text-xs px-2 py-0.5 rounded-full bg-accent/15 text-accent">This device</span>}
                   </p>
-                  <p className="text-sm text-slate-400">
+                  <p className="text-sm text-muted">
                     Last active {fmt(s.lastUsedAt)}
                     {s.ipAddress ? ` · ${s.ipAddress}` : ""}
                   </p>

@@ -62,8 +62,7 @@ const listSelect = {
   milestone: { select: { id: true, name: true } },
   labels: { select: { label: { select: { id: true, name: true, color: true } } } },
   checklist: { select: { done: true } },
-  // Only unfinished blockers count: a task whose blockers are all done is not blocked
-  dependsOn: { where: { dependsOn: { status: { not: "DONE" }, deletedAt: null } }, select: { dependsOnId: true } },
+  dependsOn: { where: { dependsOn: { deletedAt: null } }, select: { dependsOnId: true, dependsOn: { select: { status: true } } } },
   _count: { select: { subtasks: { where: { deletedAt: null } } } },
 } satisfies Prisma.TaskSelect;
 
@@ -76,8 +75,10 @@ const toListItem = ({ labels, checklist, dependsOn, _count, ...t }: ListRow) => 
   checklistTotal: checklist.length,
   checklistDone: checklist.filter((c) => c.done).length,
   subtaskCount: _count.subtasks,
-  blockedBy: dependsOn.map((d) => d.dependsOnId),
-  isBlocked: dependsOn.length > 0,
+  dependsOnIds: dependsOn.map((d) => d.dependsOnId),
+  // Only unfinished blockers count: a task whose blockers are all done is not blocked
+  blockedBy: dependsOn.filter((d) => d.dependsOn.status !== "DONE").map((d) => d.dependsOnId),
+  isBlocked: dependsOn.some((d) => d.dependsOn.status !== "DONE"),
 });
 
 /** Tasks the actor may see: not deleted, in a project they can access. */

@@ -8,6 +8,7 @@ import {
   type ReactNode,
 } from "react";
 import toast from "react-hot-toast";
+import { useQueryClient } from "@tanstack/react-query";
 import api, { CSRF_HEADERS, refreshSession, tokenStore } from "../services/api";
 import type { AuthPayload, AuthUser, OrgSummary, Permission } from "../types/auth";
 
@@ -34,14 +35,18 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [status, setStatus] = useState<Status>("loading");
   const [session, setSession] = useState<AuthPayload | null>(null);
 
+  const queryClient = useQueryClient();
+
   // Keep React state in sync with the token store (the API layer refreshes tokens on its own)
   useEffect(
     () =>
       tokenStore.subscribe((payload) => {
+        // Signed out: drop every cached response so the next person on this browser sees nothing of it
+        if (!payload) queryClient.clear();
         setSession(payload);
         setStatus(payload ? "authenticated" : "anonymous");
       }),
-    []
+    [queryClient]
   );
 
   // On first load: drop anything older versions kept in localStorage, then restore from the cookie

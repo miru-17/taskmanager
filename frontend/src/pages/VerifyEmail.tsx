@@ -30,26 +30,26 @@ const VerifyEmail = () => {
   }, [state, isAuthenticated, reload]);
 
   return (
-    <div className="min-h-screen bg-slate-950 flex items-center justify-center p-4">
-      <div className="w-full max-w-md rounded-3xl bg-slate-900 border border-slate-800 p-8 text-center" role="status">
-        {state === "verifying" && <p className="text-slate-300">Verifying your email…</p>}
+    <div className="min-h-screen bg-app flex items-center justify-center p-4">
+      <div className="w-full max-w-md rounded-3xl bg-surface border border-line p-8 text-center" role="status">
+        {state === "verifying" && <p className="text-fg-soft">Verifying your email…</p>}
         {state === "done" && (
           <>
-            <h1 className="text-2xl font-bold text-white">Email verified</h1>
-            <p className="text-slate-300 mt-3">Thanks — your address is confirmed.</p>
+            <h1 className="text-2xl font-bold text-fg">Email verified</h1>
+            <p className="text-fg-soft mt-3">Thanks — your address is confirmed.</p>
           </>
         )}
         {state === "failed" && (
           <>
-            <h1 className="text-2xl font-bold text-white">Couldn't verify</h1>
-            <p className="text-slate-300 mt-3">{message}</p>
-            <p className="text-slate-400 mt-2 text-sm">Sign in and request a new link from Security settings.</p>
+            <h1 className="text-2xl font-bold text-fg">Couldn't verify</h1>
+            <p className="text-fg-soft mt-3">{message}</p>
+            <p className="text-muted mt-2 text-sm">Sign in and request a new link from Security settings.</p>
           </>
         )}
         {state !== "verifying" && (
           <Link
             to={isAuthenticated ? "/" : "/login"}
-            className="inline-block mt-8 px-6 py-3 rounded-xl bg-cyan-500 hover:bg-cyan-600 text-white font-semibold"
+            className="inline-block mt-8 px-6 py-3 rounded-xl bg-accent hover:bg-accent-hover text-accent-fg font-semibold"
           >
             {isAuthenticated ? "Go to my tasks" : "Sign in"}
           </Link>

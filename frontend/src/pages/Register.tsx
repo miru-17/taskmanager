@@ -7,7 +7,7 @@ import background from "../assets/background.jpg";
 import api from "../services/api";
 
 const field =
-  "w-full p-3 rounded-xl bg-slate-800 text-white border border-slate-700 focus:outline-none focus:ring-2 focus:ring-cyan-500 disabled:opacity-60";
+  "w-full p-3 rounded-xl bg-elev text-fg border border-line focus:outline-none focus:ring-2 focus:ring-accent disabled:opacity-60";
 
 const Register = () => {
   const navigate = useNavigate();
@@ -61,11 +61,11 @@ const Register = () => {
   return (
     <div className="min-h-screen bg-cover bg-center bg-no-repeat" style={{ backgroundImage: `url(${background})` }}>
       <div className="min-h-screen flex items-center justify-center bg-black/60 p-4">
-        <div className="w-full max-w-md bg-slate-900/80 backdrop-blur-md rounded-3xl p-8 shadow-2xl border border-slate-700">
-          <h1 className="text-3xl font-bold text-white text-center mb-2">
+        <div className="w-full max-w-md bg-surface backdrop-blur-md rounded-3xl p-8 shadow-2xl border border-line">
+          <h1 className="text-3xl font-bold text-fg text-center mb-2">
             {inviteToken ? "Join your team" : "Create your workspace"}
           </h1>
-          <p className="text-slate-300 text-center mb-8">
+          <p className="text-fg-soft text-center mb-8">
             {inviteToken ? "Create an account to accept the invitation." : "You'll be the admin of a new organization."}
           </p>
 
@@ -73,6 +73,7 @@ const Register = () => {
             <label className="block">
               <span className="sr-only">Your name</span>
               <input
+                aria-label="Name"
                 type="text"
                 placeholder="Your name (optional)"
                 className={field}
@@ -85,6 +86,7 @@ const Register = () => {
             <label className="block">
               <span className="sr-only">Email</span>
               <input
+                aria-label="Email"
                 type="email"
                 placeholder="Email"
                 className={field}
@@ -99,6 +101,7 @@ const Register = () => {
               <label className="block">
                 <span className="sr-only">Organization name</span>
                 <input
+                  aria-label="Organization name"
                   type="text"
                   placeholder="Organization name (e.g. Acme Inc.)"
                   className={field}
@@ -112,6 +115,7 @@ const Register = () => {
             <label className="block">
               <span className="sr-only">Password</span>
               <input
+                aria-label="Password"
                 type="password"
                 placeholder="Password (at least 8 characters)"
                 className={field}
@@ -125,6 +129,7 @@ const Register = () => {
             <label className="block">
               <span className="sr-only">Confirm password</span>
               <input
+                aria-label="Confirm password"
                 type="password"
                 placeholder="Confirm password"
                 className={field}
@@ -138,15 +143,15 @@ const Register = () => {
             <button
               type="submit"
               disabled={loading}
-              className="w-full bg-cyan-500 hover:bg-cyan-600 text-white py-3 rounded-xl font-semibold transition duration-300 disabled:opacity-60"
+              className="w-full bg-accent hover:bg-accent-hover text-accent-fg py-3 rounded-xl font-semibold transition duration-300 disabled:opacity-60"
             >
               {loading ? "Creating account..." : "Create account"}
             </button>
           </form>
 
-          <p className="text-slate-300 mt-6 text-center">
+          <p className="text-fg-soft mt-6 text-center">
             Already have an account?{" "}
-            <Link to="/login" className="text-cyan-400 hover:underline">
+            <Link to="/login" className="text-accent hover:underline">
               Login
             </Link>
           </p>

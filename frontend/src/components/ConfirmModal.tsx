@@ -28,19 +28,19 @@ const ConfirmModal = ({ isOpen, title, message, confirmLabel = "Delete", onConfi
         role="dialog"
         aria-modal="true"
         aria-labelledby="confirm-title"
-        className="w-full max-w-[420px] rounded-3xl bg-slate-900 border border-cyan-500/30 p-8 shadow-[0_0_60px_rgba(6,182,212,.25)]"
+        className="w-full max-w-[420px] rounded-3xl bg-surface border border-accent/30 p-8 shadow-[0_0_60px_rgba(6,182,212,.25)]"
       >
-        <h2 id="confirm-title" className="text-3xl font-bold text-white">
+        <h2 id="confirm-title" className="text-3xl font-bold text-fg">
           {title}
         </h2>
 
-        <p className="mt-4 text-slate-300">{message}</p>
+        <p className="mt-4 text-fg-soft">{message}</p>
 
         <div className="flex justify-end gap-4 mt-8">
           <button
             ref={cancelRef}
             onClick={onCancel}
-            className="px-6 py-3 rounded-xl bg-slate-700 hover:bg-slate-600 text-white transition"
+            className="px-6 py-3 rounded-xl bg-elev-2 hover:bg-elev-2 text-fg transition"
           >
             Cancel
           </button>

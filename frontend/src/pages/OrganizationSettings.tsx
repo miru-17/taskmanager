@@ -186,7 +186,7 @@ const OrganizationSettings = () => {
           Create
         </button>
       </form>
-      <p className="text-slate-500 text-sm mt-2">You'll be its admin, and it becomes your active organization.</p>
+      <p className="text-muted text-sm mt-2">You'll be its admin, and it becomes your active organization.</p>
     </Card>
   );
 
@@ -201,7 +201,7 @@ const OrganizationSettings = () => {
   return (
     <PageShell title={organization.name} subtitle={`Your role: ${ROLE_LABELS[role]}`}>
       {error && (
-        <div className="rounded-xl border border-red-500/40 bg-red-500/10 p-4 text-red-200 flex justify-between items-center">
+        <div className="rounded-xl border border-red-500/40 bg-red-500/10 p-4 text-danger flex justify-between items-center">
           <span>{error}</span>
           <button className={secondaryButton} onClick={() => void load()}>
             Retry
@@ -231,7 +231,7 @@ const OrganizationSettings = () => {
       {can("members:invite") && (
         <Card title="Invite people">
           {!user?.emailVerified ? (
-            <p className="text-amber-300">Verify your email address (see Security settings) before inviting people.</p>
+            <p className="text-warning">Verify your email address (see Security settings) before inviting people.</p>
           ) : (
             <form onSubmit={invite} className="flex flex-col sm:flex-row gap-3">
               <input
@@ -268,19 +268,19 @@ const OrganizationSettings = () => {
           {loading ? (
             <div className="space-y-3" aria-busy="true">
               {[0, 1, 2].map((i) => (
-                <div key={i} className="h-12 rounded-xl bg-slate-800 animate-pulse" />
+                <div key={i} className="h-12 rounded-xl bg-elev animate-pulse" />
               ))}
             </div>
           ) : (
-            <ul className="divide-y divide-slate-800">
+            <ul className="divide-y divide-line">
               {members.map((m) => (
                 <li key={m.userId} className="py-3 flex flex-col sm:flex-row sm:items-center gap-3 justify-between">
                   <div className="min-w-0">
                     <p className="font-medium truncate">
                       {m.name || m.email}
-                      {m.userId === user?.id && <span className="text-slate-500"> (you)</span>}
+                      {m.userId === user?.id && <span className="text-muted"> (you)</span>}
                     </p>
-                    {m.name && <p className="text-sm text-slate-400 truncate">{m.email}</p>}
+                    {m.name && <p className="text-sm text-muted truncate">{m.email}</p>}
                   </div>
                   <div className="flex gap-2 items-center">
                     {can("members:manage") ? (
@@ -298,7 +298,7 @@ const OrganizationSettings = () => {
                         ))}
                       </select>
                     ) : (
-                      <span className="text-sm text-cyan-300">{ROLE_LABELS[m.role]}</span>
+                      <span className="text-sm text-accent">{ROLE_LABELS[m.role]}</span>
                     )}
                     {can("members:manage") && m.userId !== user?.id && (
                       <button className={dangerButton} onClick={() => setPending({ kind: "remove", member: m })}>
@@ -316,14 +316,14 @@ const OrganizationSettings = () => {
       {can("invitations:manage") && (
         <Card title="Pending invitations">
           {invitations.length === 0 ? (
-            <p className="text-slate-400">No pending invitations.</p>
+            <p className="text-muted">No pending invitations.</p>
           ) : (
-            <ul className="divide-y divide-slate-800">
+            <ul className="divide-y divide-line">
               {invitations.map((inv) => (
                 <li key={inv.id} className="py-3 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
                   <div>
                     <p className="font-medium">{inv.email}</p>
-                    <p className="text-sm text-slate-400">
+                    <p className="text-sm text-muted">
                       {ROLE_LABELS[inv.role]} · expires {fmt(inv.expiresAt)}
                     </p>
                   </div>
@@ -340,17 +340,17 @@ const OrganizationSettings = () => {
       {can("audit:read") && (
         <Card title="Audit log">
           {audit.items.length === 0 ? (
-            <p className="text-slate-400">No events yet.</p>
+            <p className="text-muted">No events yet.</p>
           ) : (
             <>
-              <ul className="divide-y divide-slate-800 text-sm">
+              <ul className="divide-y divide-line text-sm">
                 {audit.items.map((a) => (
                   <li key={a.id} className="py-2 flex flex-col sm:flex-row sm:justify-between gap-1">
                     <span>
-                      <code className="text-cyan-300">{a.action}</code>{" "}
-                      <span className="text-slate-400">by {a.actor?.name || a.actor?.email || "system"}</span>
+                      <code className="text-accent">{a.action}</code>{" "}
+                      <span className="text-muted">by {a.actor?.name || a.actor?.email || "system"}</span>
                     </span>
-                    <span className="text-slate-500">{fmt(a.createdAt)}</span>
+                    <span className="text-muted">{fmt(a.createdAt)}</span>
                   </li>
                 ))}
               </ul>
@@ -367,7 +367,7 @@ const OrganizationSettings = () => {
       {createOrgCard}
 
       <Card title="Leave organization">
-        <p className="text-slate-400 mb-4">You'll lose access to everything in {organization.name}.</p>
+        <p className="text-muted mb-4">You'll lose access to everything in {organization.name}.</p>
         <button className={dangerButton} onClick={() => setPending({ kind: "leave" })} disabled={busy}>
           Leave {organization.name}
         </button>

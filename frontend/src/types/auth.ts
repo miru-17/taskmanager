@@ -19,7 +19,11 @@ export type Permission =
   | "tasks:update_any"
   | "tasks:update_own"
   | "tasks:delete_any"
-  | "tasks:delete_own";
+  | "tasks:delete_own"
+  | "projects:create"
+  | "projects:manage_any"
+  | "teams:manage"
+  | "labels:manage";
 
 export interface AuthUser {
   id: number;
