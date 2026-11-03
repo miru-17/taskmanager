@@ -17,6 +17,8 @@ export const corsPolicy: RequestHandler = cors({
   },
   methods: ["GET", "POST", "PUT", "PATCH", "DELETE"],
   allowedHeaders: ["Content-Type", "Authorization", CSRF_HEADER],
+  // Lets the browser read "this export was cut at N rows" and the download file name
+  exposedHeaders: ["X-Export-Truncated", "Content-Disposition"],
   credentials: true,
   maxAge: 600,
 });

@@ -18,6 +18,7 @@ import { approvalsRouter } from "./modules/approvals/approvals.routes";
 import { commentsRouter, projectFeedRouter, taskCommentsRouter } from "./modules/comments/comments.routes";
 import { notificationsRouter } from "./modules/notifications/notifications.routes";
 import { eventsRouter } from "./modules/realtime/events.routes";
+import { analyticsRouter } from "./modules/analytics/analytics.routes";
 
 export const createApp = () => {
   const app = express();
@@ -62,6 +63,7 @@ export const createApp = () => {
   app.use("/projects/:projectId/activity", projectFeedRouter);
   app.use("/notifications", notificationsRouter);
   app.use("/events", eventsRouter);
+  app.use("/analytics", analyticsRouter);
   app.use("/admin", adminRouter);
 
   app.use(notFoundHandler);

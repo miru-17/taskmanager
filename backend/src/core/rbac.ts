@@ -26,11 +26,12 @@ export const PERMISSIONS = [
   "teams:manage",
   "labels:manage",
   "templates:manage", // create/edit/delete task templates (using one only needs tasks:create)
+  "analytics:read", // dashboards and exports, always limited to projects the caller can see
 ] as const;
 
 export type Permission = (typeof PERMISSIONS)[number];
 
-const TASK_WORKER: Permission[] = ["tasks:read", "tasks:create", "tasks:update_any", "tasks:delete_any", "labels:manage", "templates:manage"];
+const TASK_WORKER: Permission[] = ["tasks:read", "tasks:create", "tasks:update_any", "tasks:delete_any", "labels:manage", "templates:manage", "analytics:read"];
 
 export const ROLE_PERMISSIONS: Record<OrgRole, readonly Permission[]> = {
   ORG_ADMIN: PERMISSIONS,
@@ -39,10 +40,10 @@ export const ROLE_PERMISSIONS: Record<OrgRole, readonly Permission[]> = {
     "projects:create", "projects:manage_any", "teams:manage", ...TASK_WORKER,
   ],
   TEAM_LEAD: ["org:read", "members:read", ...TASK_WORKER],
-  MEMBER: ["org:read", "members:read", "tasks:read", "tasks:create", "tasks:update_own", "tasks:delete_own"],
+  MEMBER: ["org:read", "members:read", "tasks:read", "tasks:create", "tasks:update_own", "tasks:delete_own", "analytics:read"],
   // Clients can read tasks, but project access limits them to projects they were explicitly added to
   CLIENT: ["org:read", "tasks:read"],
-  VIEWER: ["org:read", "members:read", "tasks:read"],
+  VIEWER: ["org:read", "members:read", "tasks:read", "analytics:read"],
 };
 
 export const ROLE_RANK: Record<OrgRole, number> = {
