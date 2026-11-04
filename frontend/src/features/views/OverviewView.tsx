@@ -1,6 +1,6 @@
 import { Flag } from "lucide-react";
 import { useMilestones, useProjectFeed, useProjectMembers, useTasks } from "../../data/queries";
-import { describe } from "../tasks/activityText";
+import { actorLabel, describe } from "../tasks/activityText";
 import { timeAgo } from "../../data/dates";
 import { addDays, formatDay, todayKey, toDateInput } from "../../data/dates";
 import { STATUSES, STATUS_LABELS, displayName, type TaskStatus } from "../../types/Task";
@@ -44,7 +44,7 @@ const RecentActivity = ({ projectId }: { projectId: string }) => {
               <button type="button" onClick={() => openTask(f.task.id)} className="flex w-full gap-2.5 px-4 py-2.5 text-left hover:bg-elev">
                 <Avatar user={f.actor} size={22} />
                 <span className="min-w-0 flex-1 text-sm">
-                  <span className="font-medium">{f.actor ? displayName(f.actor) : "Someone"}</span>{" "}
+                  <span className="font-medium">{actorLabel(f, displayName)}</span>{" "}
                   <span className="text-fg-soft">{f.kind === "comment" ? "commented on" : describe(f)[0]}</span>{" "}
                   <span className="text-xs text-muted">{f.task.key}</span> <span className="truncate">{f.task.title}</span>
                   {f.kind === "comment" && <span className="mt-0.5 block truncate text-xs text-muted">“{f.excerpt}”</span>}

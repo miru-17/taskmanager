@@ -10,6 +10,7 @@ import { projectAccessWhere, resolveProjectAccess, type Actor } from "../../core
 import { optionalDate } from "../projects/projects.schemas";
 import { assertAssignable, assertProjectWritable, findVisible, getTask } from "../tasks/tasks.service";
 import { insertTask } from "../tasks/lifecycle";
+import { emitTrigger } from "../automation/emit";
 
 const priority = z.enum(["CRITICAL", "HIGH", "MEDIUM", "LOW"]);
 const checklist = z.array(z.string().trim().min(1).max(500)).max(100);
@@ -241,5 +242,6 @@ export const applyTemplate = async (actor: Actor, id: string, input: z.infer<typ
     },
     { timeout: 20_000 }
   );
+  await emitTrigger({ orgId: actor.tenant.organizationId, projectId: input.projectId, taskId, trigger: "TASK_CREATED", actorId: actor.userId });
   return getTask(actor, taskId);
 };

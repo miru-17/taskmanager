@@ -25,6 +25,7 @@ import ListView from "./features/views/ListView";
 import CalendarView from "./features/views/CalendarView";
 import TimelineView from "./features/views/TimelineView";
 import SettingsView from "./features/views/SettingsView";
+import AutomationsView from "./features/views/AutomationsView";
 import { useAuth } from "./context/AuthContext";
 import type { ReactNode } from "react";
 
@@ -51,6 +52,7 @@ export function AppRoutes() {
           <Route path="list" element={<ListView />} />
           <Route path="calendar" element={<CalendarView />} />
           <Route path="timeline" element={<TimelineView />} />
+          <Route path="automations" element={<AutomationsView />} />
           <Route path="settings" element={<SettingsView />} />
         </Route>
         <Route path="teams" element={<Teams />} />

@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState, type KeyboardEvent } from "react";
+import { useLayoutEffect, useMemo, useRef, useState, type KeyboardEvent } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import toast from "react-hot-toast";
 import { Pencil, Reply, SmilePlus, Trash2 } from "lucide-react";
@@ -47,6 +47,7 @@ const MentionInput = ({
     ? people.filter((p) => displayName(p).toLowerCase().includes(query.query.toLowerCase()) || p.email.toLowerCase().startsWith(query.query.toLowerCase())).slice(0, 6)
     : [];
 
+  const caretAfterRender = useRef<number | null>(null);
   const pick = (p: { id: number; name: string | null; email: string }) => {
     if (!query) return;
     const name = displayName(p);
@@ -55,12 +56,16 @@ const MentionInput = ({
     setText(next);
     if (!mentions.some((m) => m.id === p.id)) setMentions([...mentions, { id: p.id, name }]);
     setQuery(null);
-    requestAnimationFrame(() => {
-      const pos = query.start + name.length + 2;
-      ref.current?.focus();
-      ref.current?.setSelectionRange(pos, pos);
-    });
+    // Restored in the same commit as the new text (not a frame later), so nothing typed in between lands in the wrong place
+    caretAfterRender.current = query.start + name.length + 2;
   };
+  useLayoutEffect(() => {
+    const pos = caretAfterRender.current;
+    if (pos === null) return;
+    caretAfterRender.current = null;
+    ref.current?.focus();
+    ref.current?.setSelectionRange(pos, pos);
+  }, [text]);
 
   const submit = async () => {
     if (!text.trim() || busy) return;
@@ -184,7 +189,7 @@ const CommentItem = ({
       <Avatar user={c.author} size={26} />
       <div className="min-w-0 flex-1">
         <div className="flex items-baseline gap-2">
-          <span className="text-sm font-medium">{displayName(c.author)}</span>
+          <span className="text-sm font-medium">{c.automation ? `Automation · ${c.automation}` : displayName(c.author)}</span>
           <time className="text-xs text-muted" dateTime={c.createdAt} title={new Date(c.createdAt).toLocaleString()}>
             {timeAgo(c.createdAt)}
           </time>

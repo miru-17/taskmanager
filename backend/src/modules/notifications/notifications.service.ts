@@ -7,7 +7,7 @@ import { sendMail } from "../../core/mailer";
 import { publish } from "../../core/events";
 import { projectAccessWhere, type Actor } from "../../core/access";
 
-export const NOTIFICATION_TYPES = ["MENTIONED", "COMMENTED", "ASSIGNED", "STATUS_CHANGED", "APPROVAL_REQUESTED", "APPROVAL_DECIDED", "DUE_SOON"] as const;
+export const NOTIFICATION_TYPES = ["MENTIONED", "COMMENTED", "ASSIGNED", "STATUS_CHANGED", "APPROVAL_REQUESTED", "APPROVAL_DECIDED", "DUE_SOON", "AUTOMATION"] as const;
 /** Emailed unless the person turns them off: the ones that ask something of you */
 export const DEFAULT_EMAIL_TYPES: NotificationType[] = ["MENTIONED", "ASSIGNED", "APPROVAL_REQUESTED"];
 
@@ -38,6 +38,7 @@ const SUBJECT: Record<NotificationType, (d: { actor: string; key: string; title:
   APPROVAL_REQUESTED: (d) => `${d.actor} asked for your approval on ${d.key}`,
   APPROVAL_DECIDED: (d) => `Your approval request on ${d.key} was decided`,
   DUE_SOON: (d) => `${d.key} is due tomorrow`,
+  AUTOMATION: (d) => `Automation update on ${d.key}`,
 };
 
 /**
@@ -63,7 +64,8 @@ export const notify = async (input: NotifyInput) => {
   if (!recipients.length) return [];
 
   const actor = input.actorId ? await prisma.user.findUnique({ where: { id: input.actorId }, select: { name: true, email: true } }) : null;
-  const actorName = actor ? actor.name || actor.email.split("@")[0] : "TaskForge";
+  const named = typeof input.data?.actorName === "string" ? input.data.actorName : null; // e.g. an automation
+  const actorName = actor ? actor.name || actor.email.split("@")[0] : (named ?? "TaskForge");
   const key = `${task.project.key}-${task.number}`;
   const data = { key, title: task.title, projectId: task.projectId, projectName: task.project.name, actorName, ...input.data } as Prisma.InputJsonValue;
 

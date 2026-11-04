@@ -17,6 +17,8 @@ import { afterCompletion, assertCanComplete, insertTask, logActivity, nextPositi
 import { writeFieldValues } from "../fields/fields.service";
 import { describeRule } from "../recurrence/schedule";
 import { notify } from "../notifications/notifications.service";
+import { emitForChanges, emitTrigger } from "../automation/emit";
+import { currentAutomation } from "../automation/context";
 
 export type { Actor } from "../../core/access";
 
@@ -430,6 +432,7 @@ export const createTask = async (actor: Actor, input: CreateTaskInput) => {
   );
 
   if (input.assigneeId) await notify({ orgId: actor.tenant.organizationId, type: "ASSIGNED", actorId: actor.userId, taskId: id, userIds: [input.assigneeId] });
+  await emitTrigger({ orgId: actor.tenant.organizationId, projectId, taskId: id, trigger: "TASK_CREATED", actorId: actor.userId });
   return toListItem(await findVisible(actor, id));
 };
 
@@ -511,7 +514,11 @@ const applyUpdate = async (db: Prisma.TransactionClient, actor: Actor, existing:
   if (typeof data.assigneeId === "number") {
     await db.taskWatcher.createMany({ data: [{ taskId: existing.id, userId: data.assigneeId }], skipDuplicates: true });
   }
-  if (Object.keys(changes).length) await logActivity(db, existing.id, actor.userId, "updated", changes as Prisma.InputJsonValue);
+  if (Object.keys(changes).length) {
+    // An automation's edit names the rule in the history ("_automation" is not a field)
+    const rule = actor.userId === 0 ? currentAutomation()?.ruleName : undefined;
+    await logActivity(db, existing.id, actor.userId, "updated", (rule ? { ...changes, _automation: rule } : changes) as Prisma.InputJsonValue);
+  }
   if (data.status === "DONE") await afterCompletion(db, existing.id, actor.userId, approvalToConsume);
   return changes;
 };
@@ -522,22 +529,27 @@ type Changes = Record<string, { from: unknown; to: unknown }>;
  * Notifications for one task's committed changes: the new assignee hears they were assigned,
  * watchers hear about status changes. Runs after the transaction, so a refused update never notifies.
  */
-const notifyChanges = async (actor: Actor, taskId: number, changes: Changes) => {
+const notifyChanges = async (actor: Actor, taskId: number, changes: Changes, projectId?: string) => {
   const orgId = actor.tenant.organizationId;
+  const actorId = actor.userId > 0 ? actor.userId : null; // 0 = automation
+  const rule = actorId === null ? currentAutomation()?.ruleName : undefined;
+  const by = rule ? { actorName: `Automation “${rule}”` } : {};
   const assignee = changes.assigneeId?.to;
-  if (typeof assignee === "number") await notify({ orgId, type: "ASSIGNED", actorId: actor.userId, taskId, userIds: [assignee] });
+  if (typeof assignee === "number") await notify({ orgId, type: "ASSIGNED", actorId, taskId, userIds: [assignee], data: by });
   if (changes.status) {
     const watchers = await prisma.taskWatcher.findMany({ where: { taskId }, select: { userId: true } });
     await notify({
       orgId,
       type: "STATUS_CHANGED",
-      actorId: actor.userId,
+      actorId,
       taskId,
       // The new assignee already got "assigned"; don't double up
       userIds: watchers.map((w) => w.userId).filter((u) => u !== assignee),
-      data: { from: changes.status.from, to: changes.status.to },
+      data: { from: changes.status.from, to: changes.status.to, ...by },
     });
   }
+  const pid = projectId ?? (await prisma.task.findUnique({ where: { id: taskId }, select: { projectId: true } }))?.projectId;
+  if (pid) await emitForChanges(orgId, pid, taskId, actorId, changes);
 };
 
 export const updateTask = async (actor: Actor, id: number, input: UpdateTaskInput) => {
@@ -548,7 +560,7 @@ export const updateTask = async (actor: Actor, id: number, input: UpdateTaskInpu
   await assertProjectWritable(existing.projectId);
 
   const changes = await prisma.$transaction((tx) => applyUpdate(tx, actor, existing, input));
-  await notifyChanges(actor, id, changes);
+  await notifyChanges(actor, id, changes, existing.projectId);
   return toListItem(await findVisible(actor, id));
 };
 
@@ -747,4 +759,25 @@ export const bulk = async (req: Request, actor: Actor, input: BulkInput) => {
   });
   for (const [taskId, changes] of bulkChanges) await notifyChanges(actor, taskId, changes);
   return { updated: tasks.length };
+};
+
+
+// ─── Automation entry point ──────────────────────────────────────────────────
+
+/** The system actor automations act as: org-wide reach, recorded as "no person" (id 0). */
+export const systemActor = (organizationId: string): Actor => ({ userId: 0, tenant: { organizationId, role: "ORG_ADMIN" } });
+
+/**
+ * Applies an automation's change through exactly the same rules as a person's edit
+ * (blocked tasks stay blocked, approvals still required, history recorded), then sends the
+ * usual notifications and follow-on trigger events.
+ */
+export const automationUpdate = async (organizationId: string, taskId: number, input: UpdateTaskInput & { addLabelIds?: string[]; removeLabelIds?: string[] }) => {
+  const actor = systemActor(organizationId);
+  const existing = await findVisible(actor, taskId);
+  if (existing.archivedAt) throw badRequest("The task is archived");
+  await assertProjectWritable(existing.projectId);
+  const changes = await prisma.$transaction((tx) => applyUpdate(tx, actor, existing, input));
+  await notifyChanges(actor, taskId, changes, existing.projectId);
+  return changes;
 };

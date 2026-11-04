@@ -7,7 +7,7 @@ import { useDeleteTask, useFields, useMilestones, useTask, useTaskAction, useUpd
 import { useAuth } from "../../context/AuthContext";
 import CustomFieldInput from "./CustomFieldInput";
 import { ApprovalSection, AttachmentsSection, RecurrenceSection, Section } from "./DrawerExtras";
-import { describe } from "./activityText";
+import { actorLabel, describe } from "./activityText";
 import SaveTemplateDialog from "../templates/SaveTemplateDialog";
 import CommentsSection from "../comments/Comments";
 import { useNotificationAction } from "../../data/queries";
@@ -430,7 +430,7 @@ const TaskBody = ({ task }: { task: TaskDetail }) => {
                 <li key={`${a.id}-${i}`} className="flex gap-2 text-sm">
                   <Avatar user={a.actor} size={18} />
                   <span className="text-fg-soft">
-                    <span className="font-medium text-fg">{a.actor ? displayName(a.actor) : "Someone"}</span> {line}
+                    <span className="font-medium text-fg">{actorLabel(a, displayName)}</span> {line}
                     <span className="ml-1.5 text-xs text-muted">{timeAgo(a.createdAt)}</span>
                   </span>
                 </li>

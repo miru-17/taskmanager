@@ -4,6 +4,9 @@ import { prisma } from "./core/prisma";
 import { createApp } from "./app";
 import { stopEvents } from "./core/events";
 import { runDueSoonSweep } from "./modules/notifications/notifications.service";
+import { startQueue, stopQueue } from "./core/queue";
+import { AUTOMATION_SWEEP_JOB } from "./modules/automation";
+import { runTimeSweep } from "./modules/automation/engine";
 
 const app = createApp();
 
@@ -19,9 +22,17 @@ const sweep = () =>
 setTimeout(sweep, 30_000).unref();
 setInterval(sweep, 60 * 60_000).unref();
 
+// Automations run on pg-boss: durable, retried, and shared safely between several API processes.
+// If the queue can't start, events still run in-process so automations keep working (logged loudly).
+startQueue([{ name: AUTOMATION_SWEEP_JOB, cron: "7 * * * *" }]).catch((err) => {
+  logger.error({ err }, "Job queue failed to start; automations will run in-process");
+  setInterval(() => void runTimeSweep().catch((e) => logger.warn({ err: e }, "Automation sweep failed")), 60 * 60_000).unref();
+});
+
 const shutdown = (signal: string) => {
   logger.info({ signal }, "Shutting down");
   server.close(async () => {
+    await stopQueue();
     await stopEvents();
     await prisma.$disconnect();
     process.exit(0);

@@ -18,6 +18,8 @@ export const describeNotification = (n: AppNotification): string => {
       return n.data.outcome === "APPROVED" ? `${who} approved it${n.data.completed ? "; it's done" : ""}` : `${who} requested changes`;
     case "DUE_SOON":
       return "Due tomorrow";
+    case "AUTOMATION":
+      return n.data.message ? `${n.data.rule ? `“${n.data.rule}”: ` : ""}${n.data.message}` : "An automation ran";
   }
 };
 

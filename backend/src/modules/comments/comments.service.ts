@@ -6,6 +6,7 @@ import { audit } from "../../core/audit";
 import { publishTaskChange } from "../../core/events";
 import { projectAccessWhere, resolveProjectAccess, type Actor } from "../../core/access";
 import { findVisible } from "../tasks/tasks.service";
+import { emitTrigger } from "../automation/emit";
 import { excerpt, notify } from "../notifications/notifications.service";
 
 export const REACTIONS = ["👍", "👎", "🎉", "❤️", "😄", "👀", "🚀", "✅"] as const;
@@ -60,11 +61,12 @@ const commentSelect = {
   editedAt: true,
   deletedAt: true,
   createdAt: true,
+  automationName: true,
   author: { select: userSelect },
   reactions: { select: { emoji: true, userId: true } },
 } as const;
 
-type Row = { id: string; parentId: string | null; body: string; editedAt: Date | null; deletedAt: Date | null; createdAt: Date; author: { id: number; email: string; name: string | null } | null; reactions: { emoji: string; userId: number }[] };
+type Row = { id: string; parentId: string | null; body: string; editedAt: Date | null; deletedAt: Date | null; createdAt: Date; automationName: string | null; author: { id: number; email: string; name: string | null } | null; reactions: { emoji: string; userId: number }[] };
 
 const shape = (c: Row, me: number) => ({
   id: c.id,
@@ -74,6 +76,8 @@ const shape = (c: Row, me: number) => ({
   editedAt: c.editedAt,
   createdAt: c.createdAt,
   author: c.deletedAt ? null : c.author,
+  /** Name of the automation rule that wrote it (author is then null) */
+  automation: c.deletedAt ? null : c.automationName,
   reactions: REACTIONS.map((emoji) => {
     const who = c.reactions.filter((r) => r.emoji === emoji);
     return { emoji, count: who.length, mine: who.some((r) => r.userId === me) };
@@ -123,6 +127,8 @@ export const createComment = async (req: Request, actor: Actor, taskId: number, 
     data: { excerpt: text, commentId: comment.id },
   });
   await publishTaskChange(organizationId, [taskId], actor.userId, "comment.changed");
+  // Comments written by automations don't trigger COMMENT_ADDED rules (they'd only echo)
+  if (actor.userId > 0) await emitTrigger({ orgId: organizationId, projectId: task.projectId, taskId, trigger: "COMMENT_ADDED", actorId: actor.userId });
   await audit(req, { action: "comment.created", organizationId, targetType: "task", targetId: taskId, metadata: { commentId: comment.id, mentions: mentioned.length } });
   return shape(comment, actor.userId);
 };
@@ -210,13 +216,13 @@ export const projectFeed = async (actor: Actor, projectId: string, limit: number
       where: { task: taskWhere, deletedAt: null },
       orderBy: { createdAt: "desc" },
       take: limit,
-      select: { id: true, body: true, createdAt: true, author: { select: userSelect }, task: taskRef },
+      select: { id: true, body: true, createdAt: true, automationName: true, author: { select: userSelect }, task: taskRef },
     }),
   ]);
   const ref = (t: { id: number; number: number; title: string; project: { key: string } }) => ({ id: t.id, key: `${t.project.key}-${t.number}`, title: t.title });
   return [
     ...activities.map((a) => ({ kind: "activity" as const, id: a.id, type: a.type, changes: a.changes, createdAt: a.createdAt, actor: a.actor, task: ref(a.task) })),
-    ...comments.map((c) => ({ kind: "comment" as const, id: c.id, excerpt: excerpt(c.body, 200), createdAt: c.createdAt, actor: c.author, task: ref(c.task) })),
+    ...comments.map((c) => ({ kind: "comment" as const, id: c.id, excerpt: excerpt(c.body, 200), createdAt: c.createdAt, actor: c.author, automation: c.automationName, task: ref(c.task) })),
   ]
     .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime())
     .slice(0, limit);

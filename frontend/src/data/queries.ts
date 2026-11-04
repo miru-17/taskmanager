@@ -40,7 +40,7 @@ export const createQueryClient = () =>
   });
 
 /** Everything is scoped by organisation so switching orgs never shows stale data from the other one. */
-const useOrgKey = () => useAuth().organization?.id ?? "none";
+export const useOrgKey = () => useAuth().organization?.id ?? "none";
 
 // ─── Task filters ↔ query string ─────────────────────────────────────────────
 

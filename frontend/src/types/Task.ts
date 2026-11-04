@@ -318,13 +318,15 @@ export interface Comment {
   editedAt: string | null;
   createdAt: string;
   author: UserRef | null;
+  /** Name of the automation rule that wrote it (author is then null) */
+  automation?: string | null;
   reactions: { emoji: Reaction; count: number; mine: boolean }[];
 }
 export interface CommentThread extends Comment {
   replies: Comment[];
 }
 
-export type NotificationType = "MENTIONED" | "COMMENTED" | "ASSIGNED" | "STATUS_CHANGED" | "APPROVAL_REQUESTED" | "APPROVAL_DECIDED" | "DUE_SOON";
+export type NotificationType = "MENTIONED" | "COMMENTED" | "ASSIGNED" | "STATUS_CHANGED" | "APPROVAL_REQUESTED" | "APPROVAL_DECIDED" | "DUE_SOON" | "AUTOMATION";
 export const NOTIFICATION_LABELS: Record<NotificationType, string> = {
   MENTIONED: "Someone mentions you",
   COMMENTED: "New comments on tasks you watch",
@@ -333,6 +335,7 @@ export const NOTIFICATION_LABELS: Record<NotificationType, string> = {
   APPROVAL_REQUESTED: "Your approval is requested",
   APPROVAL_DECIDED: "Your approval request is decided",
   DUE_SOON: "A task assigned to you is due tomorrow",
+  AUTOMATION: "An automation sends you a message",
 };
 
 export interface AppNotification {
@@ -353,12 +356,15 @@ export interface AppNotification {
     to?: TaskStatus;
     outcome?: "APPROVED" | "REJECTED";
     completed?: boolean;
+    /** AUTOMATION notifications */
+    message?: string;
+    rule?: string;
   };
 }
 
 export type FeedItem =
   | { kind: "activity"; id: string; type: string; changes: Record<string, unknown> | null; createdAt: string; actor: UserRef | null; task: { id: number; key: string; title: string } }
-  | { kind: "comment"; id: string; excerpt: string; createdAt: string; actor: UserRef | null; task: { id: number; key: string; title: string } };
+  | { kind: "comment"; id: string; excerpt: string; createdAt: string; actor: UserRef | null; automation?: string | null; task: { id: number; key: string; title: string } };
 
 // ─── Phase 5: analytics ──────────────────────────────────────────────────────
 
@@ -411,4 +417,65 @@ export interface ProjectAnalytics {
   stats: ProjectStats;
   completedInRange: number;
   health: ProjectHealth;
+}
+
+// ─── Automations ─────────────────────────────────────────────────────────────
+
+export type AutomationTrigger = "TASK_CREATED" | "STATUS_CHANGED" | "ASSIGNEE_CHANGED" | "PRIORITY_CHANGED" | "COMMENT_ADDED" | "DUE_SOON" | "OVERDUE";
+export type AutomationCondition =
+  | { field: "status"; op: "is" | "is_not"; value: TaskStatus[] }
+  | { field: "priority"; op: "is" | "is_not"; value: Priority[] }
+  | { field: "assignee"; op: "is_set" | "is_not_set" }
+  | { field: "assignee_is"; value: number }
+  | { field: "label"; op: "has" | "has_not"; value: string }
+  | { field: "title"; op: "contains"; value: string }
+  | { field: "dueDate"; op: "is_set" | "is_not_set" }
+  | { field: "subtask"; op: "is" | "is_not" };
+export type AutomationAction =
+  | { type: "SET_STATUS"; status: TaskStatus }
+  | { type: "SET_PRIORITY"; priority: Priority }
+  | { type: "ASSIGN"; to: "creator" | "unassigned" | number }
+  | { type: "SET_DUE_DATE"; daysFromNow: number }
+  | { type: "ADD_LABEL"; labelId: string }
+  | { type: "REMOVE_LABEL"; labelId: string }
+  | { type: "ADD_COMMENT"; body: string }
+  | { type: "NOTIFY"; to: "assignee" | "creator" | "watchers" | "project_managers" | number; message: string };
+export interface TriggerConfig {
+  from?: TaskStatus;
+  to?: TaskStatus | Priority;
+  days?: number;
+}
+export interface AutomationRule {
+  id: string;
+  projectId: string;
+  name: string;
+  enabled: boolean;
+  trigger: AutomationTrigger;
+  triggerConfig: TriggerConfig;
+  conditions: AutomationCondition[];
+  actions: AutomationAction[];
+  createdBy: UserRef | null;
+  runCount: number;
+  lastRunAt: string | null;
+  failureStreak: number;
+  disabledReason: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+export type AutomationRunStatus = "RUNNING" | "SUCCEEDED" | "SKIPPED" | "FAILED" | "LOOP_BLOCKED";
+export interface AutomationRun {
+  id: string;
+  status: AutomationRunStatus;
+  depth: number;
+  detail: { actions?: string[]; error?: string; reason?: string; failedCondition?: number; condition?: AutomationCondition; chain?: string[]; runsLastMinute?: number; notified?: number; comments?: number } | null;
+  createdAt: string;
+  task: { id: number; key: string; title: string } | null;
+}
+export interface AutomationDryRun {
+  wouldRun: boolean;
+  enabled: boolean;
+  conditions: { condition: AutomationCondition; holds: boolean }[];
+  actions: string[];
+  problems: string[];
+  triggerNote: string;
 }

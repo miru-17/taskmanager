@@ -19,9 +19,12 @@ import { commentsRouter, projectFeedRouter, taskCommentsRouter } from "./modules
 import { notificationsRouter } from "./modules/notifications/notifications.routes";
 import { eventsRouter } from "./modules/realtime/events.routes";
 import { analyticsRouter } from "./modules/analytics/analytics.routes";
+import { automationsRouter, projectAutomationsRouter } from "./modules/automation/automation.routes";
+import { registerAutomationJobs } from "./modules/automation";
 
 export const createApp = () => {
   const app = express();
+  registerAutomationJobs();
 
   app.disable("x-powered-by");
   // Behind one reverse proxy in production (needed for correct client IPs in rate limiting)
@@ -51,6 +54,7 @@ export const createApp = () => {
   app.use("/invitations", invitationsRouter);
   app.use("/tasks", tasksRouter);
   app.use("/projects/:projectId/fields", fieldsRouter);
+  app.use("/projects/:projectId/automations", projectAutomationsRouter);
   app.use("/projects", projectsRouter);
   app.use("/teams", teamsRouter);
   app.use("/labels", labelsRouter);
@@ -64,6 +68,7 @@ export const createApp = () => {
   app.use("/notifications", notificationsRouter);
   app.use("/events", eventsRouter);
   app.use("/analytics", analyticsRouter);
+  app.use("/automations", automationsRouter);
   app.use("/admin", adminRouter);
 
   app.use(notFoundHandler);

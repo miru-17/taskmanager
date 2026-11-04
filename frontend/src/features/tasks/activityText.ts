@@ -35,7 +35,7 @@ export const describe = (a: Pick<Activity, "type" | "changes">): string[] => {
     case "created":
       return ["created this task"];
     case "updated":
-      return Object.entries(c).map(([f, v]) => {
+      return Object.entries(c).filter(([f]) => !f.startsWith("_")).map(([f, v]) => {
         const { from, to } = v as { from: unknown; to: unknown };
         const name = FIELD_LABELS[f] ?? f;
         // Custom field values are option/user ids or free text: name the field, not the raw value
@@ -80,8 +80,18 @@ export const describe = (a: Pick<Activity, "type" | "changes">): string[] => {
       return ["cancelled the approval request"];
     case "approval_waiting_on_blockers":
       return ["approval granted; waiting on blocking tasks before completing"];
+    case "automation_ran":
+      return [`ran “${String(c.rule)}”`];
     default:
       return [a.type.replace(/_/g, " ")];
   }
 };
 
+
+/** Who to show for a history entry: the person, the automation that made the change, or "Someone" (a removed account). */
+export const actorLabel = (a: { actor: { name: string | null; email: string } | null; type?: string; changes?: Record<string, unknown> | null; automation?: string | null }, name: (u: { name: string | null; email: string }) => string) => {
+  if (a.actor) return name(a.actor);
+  const c = a.changes ?? {};
+  if (a.automation || a.type === "automation_ran" || typeof c._automation === "string") return "Automation";
+  return "Someone";
+};

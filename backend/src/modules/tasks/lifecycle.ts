@@ -23,8 +23,9 @@ export const nextPosition = async (db: Db, projectId: string, status: Status) =>
   return (last._max.position ?? 0) + POSITION_GAP;
 };
 
+/** actorId 0 is the system (automations): stored as "no person" */
 export const logActivity = (db: Db, taskId: number, actorId: number | null, type: string, changes?: Prisma.InputJsonValue) =>
-  db.taskActivity.create({ data: { taskId, actorId, type, changes } });
+  db.taskActivity.create({ data: { taskId, actorId: actorId && actorId > 0 ? actorId : null, type, changes } });
 
 export interface NewTask {
   organizationId: string;
@@ -155,7 +156,7 @@ export const afterCompletion = async (tx: Prisma.TransactionClient, taskId: numb
   const id = await insertTask(tx, {
     organizationId: t.organizationId,
     projectId: t.projectId,
-    createdById: t.createdById ?? actorId,
+    createdById: t.createdById ?? (actorId && actorId > 0 ? actorId : null),
     title: t.title,
     description: t.description,
     priority: t.priority,

@@ -1,5 +1,6 @@
 import { NavLink, Navigate, Outlet, useLocation, useOutletContext, useParams } from "react-router-dom";
-import { CalendarDays, GanttChart, KanbanSquare, LayoutDashboard, List, Lock, Plus, Settings } from "lucide-react";
+import { CalendarDays, GanttChart, KanbanSquare, LayoutDashboard, List, Lock, Plus, Settings, Workflow } from "lucide-react";
+import { useAuth } from "../../context/AuthContext";
 import { useProject } from "../../data/queries";
 import { errorStatus, getErrorMessage } from "../../data/errors";
 import type { Project } from "../../types/Task";
@@ -34,6 +35,7 @@ const ProjectLayout = () => {
   const { data: project, isPending, isError, error, refetch } = useProject(projectId);
   const { filters } = useFilters();
   const { open } = useComposer();
+  const { organization } = useAuth();
 
   if (isPending) return <Spinner label="Loading project…" />;
   if (isError) {
@@ -80,10 +82,15 @@ const ProjectLayout = () => {
           )}
         </div>
         <nav aria-label="Project views" className="scroll-thin mt-3 -mb-px flex gap-1 overflow-x-auto">
-          {[...TABS, ...(caps?.manage ? [{ to: "settings", label: "Settings", icon: Settings }] : [])].map((t) => (
+          {[
+            ...TABS,
+            // Clients never see automations; everyone else can read them (only managers edit)
+            ...(organization?.role !== "CLIENT" ? [{ to: "automations", label: "Automations", icon: Workflow }] : []),
+            ...(caps?.manage ? [{ to: "settings", label: "Settings", icon: Settings }] : []),
+          ].map((t) => (
             <NavLink
               key={t.to}
-              to={{ pathname: t.to, search: t.to === "overview" || t.to === "settings" ? "" : location.search }}
+              to={{ pathname: t.to, search: ["overview", "settings", "automations"].includes(t.to) ? "" : location.search }}
               className={({ isActive }) =>
                 cx("flex items-center gap-1.5 border-b-2 px-3 py-2 text-sm whitespace-nowrap", isActive ? "border-accent font-medium text-fg" : "border-transparent text-muted hover:text-fg")
               }

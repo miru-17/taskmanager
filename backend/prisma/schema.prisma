@@ -53,6 +53,7 @@ model User {
   notifications      Notification[]           @relation("NotificationRecipient")
   notificationsSent  Notification[]           @relation("NotificationActor")
   notificationPrefs  NotificationPreference[]
+  automationsCreated AutomationRule[]
 }
 
 /// One row per signed-in device. The refresh token itself is never stored, only its SHA-256.
@@ -121,6 +122,8 @@ model Organization {
   attachments       Attachment[]
   notifications     Notification[]
   notificationPrefs NotificationPreference[]
+  automationRules   AutomationRule[]
+  automationRuns    AutomationRun[]
 }
 
 enum OrgRole {
@@ -285,6 +288,7 @@ model Project {
   customFields CustomField[]
   templates    TaskTemplate[]
   series       RecurrenceSeries[]
+  automations  AutomationRule[]
 
   @@unique([organizationId, key])
   @@index([organizationId, status])
@@ -360,17 +364,18 @@ model Task {
   previousOccurrence Task?             @relation("Recurrence", fields: [previousOccurrenceId], references: [id], onDelete: SetNull)
   nextOccurrence     Task?             @relation("Recurrence")
 
-  labels        TaskLabel[]
-  checklist     ChecklistItem[]
-  dependsOn     TaskDependency[]  @relation("DependentTask")
-  blocks        TaskDependency[]  @relation("BlockingTask")
-  watchers      TaskWatcher[]
-  activities    TaskActivity[]
-  fieldValues   TaskFieldValue[]
-  attachments   Attachment[]
-  approvals     ApprovalRequest[]
-  comments      TaskComment[]
-  notifications Notification[]
+  labels         TaskLabel[]
+  checklist      ChecklistItem[]
+  dependsOn      TaskDependency[]  @relation("DependentTask")
+  blocks         TaskDependency[]  @relation("BlockingTask")
+  watchers       TaskWatcher[]
+  activities     TaskActivity[]
+  fieldValues    TaskFieldValue[]
+  attachments    Attachment[]
+  approvals      ApprovalRequest[]
+  comments       TaskComment[]
+  notifications  Notification[]
+  automationRuns AutomationRun[]
 
   @@unique([projectId, number])
   @@index([organizationId, createdAt])
@@ -661,16 +666,18 @@ model ApprovalStep {
 
 /// A comment on a task. Replies are one level deep (parentId points at a top-level comment).
 model TaskComment {
-  id        String    @id @default(cuid())
-  taskId    Int
-  authorId  Int?
-  parentId  String?
+  id             String    @id @default(cuid())
+  taskId         Int
+  authorId       Int?
+  parentId       String?
   /// Plain text with a tiny markdown subset; mentions are stored as @[Name](user:ID)
-  body      String
-  editedAt  DateTime?
+  body           String
+  /// Set when an automation rule wrote the comment (authorId is then null)
+  automationName String?
+  editedAt       DateTime?
   /// Soft delete keeps the thread readable ("comment deleted") when it has replies
-  deletedAt DateTime?
-  createdAt DateTime  @default(now())
+  deletedAt      DateTime?
+  createdAt      DateTime  @default(now())
 
   task      Task              @relation(fields: [taskId], references: [id], onDelete: Cascade)
   author    User?             @relation(fields: [authorId], references: [id], onDelete: SetNull)
@@ -715,6 +722,7 @@ enum NotificationType {
   APPROVAL_REQUESTED
   APPROVAL_DECIDED
   DUE_SOON
+  AUTOMATION
 }
 
 model Notification {
@@ -750,4 +758,81 @@ model NotificationPreference {
   organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
 
   @@id([userId, organizationId])
+}
+
+// ─── Phase 6: automation ─────────────────────────────────────────────────────
+
+enum AutomationTrigger {
+  TASK_CREATED
+  STATUS_CHANGED
+  ASSIGNEE_CHANGED
+  PRIORITY_CHANGED
+  COMMENT_ADDED
+  DUE_SOON
+  OVERDUE
+}
+
+enum AutomationRunStatus {
+  /// Claimed by a worker; actions in progress
+  RUNNING
+  SUCCEEDED
+  SKIPPED
+  FAILED
+  LOOP_BLOCKED
+}
+
+/// "When <trigger> and <conditions>, do <actions>" for one project.
+model AutomationRule {
+  id             String            @id @default(cuid())
+  organizationId String
+  projectId      String
+  name           String
+  enabled        Boolean           @default(true)
+  trigger        AutomationTrigger
+  /// Trigger options, e.g. { "to": "DONE" } for STATUS_CHANGED or { "days": 2 } for DUE_SOON
+  triggerConfig  Json              @default("{}")
+  /// All must hold: [{ "field": "priority", "op": "in", "value": ["HIGH","CRITICAL"] }]
+  conditions     Json              @default("[]")
+  /// Run in order: [{ "type": "SET_STATUS", "status": "IN_REVIEW" }]
+  actions        Json
+  createdById    Int?
+  runCount       Int               @default(0)
+  lastRunAt      DateTime?
+  /// Consecutive failures; the rule switches itself off at the limit
+  failureStreak  Int               @default(0)
+  /// Why the system switched the rule off (failures, too many runs)
+  disabledReason String?
+  createdAt      DateTime          @default(now())
+  updatedAt      DateTime          @updatedAt
+
+  organization Organization    @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  project      Project         @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  createdBy    User?           @relation(fields: [createdById], references: [id], onDelete: SetNull)
+  runs         AutomationRun[]
+
+  @@index([projectId, trigger, enabled])
+}
+
+/// One evaluation of one rule for one event. (ruleId, eventId) is unique, so a redelivered
+/// event never runs a rule twice.
+model AutomationRun {
+  id             String              @id @default(cuid())
+  ruleId         String
+  organizationId String
+  taskId         Int?
+  eventId        String
+  status         AutomationRunStatus
+  /// Depth in a chain of automation-caused events (0 = caused by a person)
+  depth          Int                 @default(0)
+  /// Actions applied, or why it was skipped/failed
+  detail         Json
+  createdAt      DateTime            @default(now())
+
+  rule         AutomationRule @relation(fields: [ruleId], references: [id], onDelete: Cascade)
+  organization Organization   @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  task         Task?          @relation(fields: [taskId], references: [id], onDelete: SetNull)
+
+  @@unique([ruleId, eventId])
+  @@index([ruleId, createdAt])
+  @@index([organizationId, createdAt])
 }

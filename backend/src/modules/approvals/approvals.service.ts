@@ -6,6 +6,7 @@ import { audit } from "../../core/audit";
 import { projectAccessWhere, resolveProjectAccess, type Actor } from "../../core/access";
 import { assertProjectWritable, editableTask, findVisible, getTask, visibleTasks } from "../tasks/tasks.service";
 import { afterCompletion, logActivity, nextPosition } from "../tasks/lifecycle";
+import { emitTrigger } from "../automation/emit";
 import { excerpt, notify } from "../notifications/notifications.service";
 
 export const requestBody = z.object({
@@ -134,6 +135,7 @@ export const decide = async (req: Request, actor: Actor, requestId: string, inpu
       if (task.status === "IN_REVIEW") {
         await tx.task.update({ where: { id: r.taskId }, data: { status: "IN_PROGRESS", position: await nextPosition(tx, task.projectId, "IN_PROGRESS") } });
         await logActivity(tx, r.taskId, actor.userId, "updated", { status: { from: "IN_REVIEW", to: "IN_PROGRESS" } });
+        return { status, completed: false, moved: { projectId: task.projectId, from: "IN_REVIEW", to: "IN_PROGRESS" } };
       }
       return { status, completed: false };
     }
@@ -147,8 +149,11 @@ export const decide = async (req: Request, actor: Actor, requestId: string, inpu
     await tx.task.update({ where: { id: r.taskId }, data: { status: "DONE", completedAt: now, position: await nextPosition(tx, task.projectId, "DONE") } });
     await logActivity(tx, r.taskId, actor.userId, "updated", { status: { from: task.status, to: "DONE" } });
     await afterCompletion(tx, r.taskId, actor.userId, requestId);
-    return { status, completed: true };
+    return { status, completed: true, moved: { projectId: task.projectId, from: task.status, to: "DONE" } };
   });
+  if ("moved" in outcome && outcome.moved) {
+    await emitTrigger({ orgId: actor.tenant.organizationId, projectId: outcome.moved.projectId, taskId: r.taskId, trigger: "STATUS_CHANGED", change: { from: outcome.moved.from, to: outcome.moved.to }, actorId: actor.userId });
+  }
 
   await audit(req, { action: "approval.decided", organizationId: actor.tenant.organizationId, targetType: "task", targetId: r.taskId, metadata: { requestId, decision: input.decision, outcome: outcome.status } });
   if (outcome.status !== "PENDING" && r.requestedById) {
@@ -161,7 +166,7 @@ export const decide = async (req: Request, actor: Actor, requestId: string, inpu
       data: { outcome: outcome.status, completed: outcome.completed, ...(input.comment ? { excerpt: excerpt(input.comment) } : {}) },
     });
   }
-  return { ...outcome, task: await getTask(actor, r.taskId) };
+  return { status: outcome.status, completed: outcome.completed, task: await getTask(actor, r.taskId) };
 };
 
 /** The requester, or a project manager, can withdraw a pending request. */

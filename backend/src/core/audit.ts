@@ -4,6 +4,9 @@ import { prisma } from "./prisma";
 import { logger } from "./logger";
 
 export type AuditAction =
+  | "automation.created"
+  | "automation.updated"
+  | "automation.deleted"
   | "auth.register"
   | "auth.login"
   | "auth.login_failed"
