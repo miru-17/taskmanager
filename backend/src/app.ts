@@ -21,6 +21,7 @@ import { eventsRouter } from "./modules/realtime/events.routes";
 import { analyticsRouter } from "./modules/analytics/analytics.routes";
 import { automationsRouter, projectAutomationsRouter } from "./modules/automation/automation.routes";
 import { registerAutomationJobs } from "./modules/automation";
+import { aiRouter } from "./modules/ai/ai.routes";
 
 export const createApp = () => {
   const app = express();
@@ -69,6 +70,7 @@ export const createApp = () => {
   app.use("/events", eventsRouter);
   app.use("/analytics", analyticsRouter);
   app.use("/automations", automationsRouter);
+  app.use("/ai", aiRouter);
   app.use("/admin", adminRouter);
 
   app.use(notFoundHandler);

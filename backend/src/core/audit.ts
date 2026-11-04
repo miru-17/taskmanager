@@ -4,6 +4,7 @@ import { prisma } from "./prisma";
 import { logger } from "./logger";
 
 export type AuditAction =
+  | "ai.settings_updated"
   | "automation.created"
   | "automation.updated"
   | "automation.deleted"

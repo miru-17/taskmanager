@@ -9,6 +9,8 @@ import { cx } from "../../ui/cx";
 import { TaskLine } from "../tasks/TaskBits";
 import { useTaskParam } from "../tasks/composer";
 import { useProjectOutlet } from "../projects/ProjectLayout";
+import { ProjectAssist } from "../ai/ProjectAssist";
+import { useAuth } from "../../context/AuthContext";
 import { healthReason } from "./logic";
 
 
@@ -72,6 +74,7 @@ const OverviewView = () => {
   const overdue = useTasks({ projectId: project.id, overdue: true, sort: "dueDate", limit: 8 });
   const upcoming = useTasks({ projectId: project.id, status: ["TODO", "IN_PROGRESS", "IN_REVIEW"], dueFrom: today, dueTo: addDays(today, 7), sort: "dueDate", limit: 8 });
   const s = project.stats;
+  const { organization } = useAuth();
 
   return (
     <div className="h-full overflow-y-auto scroll-thin">
@@ -109,6 +112,8 @@ const OverviewView = () => {
             ))}
           </section>
         </div>
+
+        {organization?.role !== "CLIENT" && <ProjectAssist project={project} />}
 
         <div className="grid gap-4 lg:grid-cols-2">
           <section className="rounded-xl border border-line bg-surface shadow-card">

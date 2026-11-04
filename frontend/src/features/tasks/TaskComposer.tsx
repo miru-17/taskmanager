@@ -7,6 +7,7 @@ import CustomFieldInput from "./CustomFieldInput";
 import { Button, Dialog, Field, field, textarea } from "../../ui";
 import { AssigneeSelect, LabelPicker } from "./pickers";
 import { useComposer, useTaskParam } from "./composer";
+import { SmartInput } from "../ai/SmartInput";
 
 const empty = {
   title: "",
@@ -160,6 +161,28 @@ const TaskComposer = () => {
             {template.subtaskCount === 1 ? "" : "s"}
             {template.payload.dueInDays != null ? `, due ${template.payload.dueInDays} day${template.payload.dueInDays === 1 ? "" : "s"} from today unless you pick a date` : ""}.
           </p>
+        )}
+        {!template && (
+          <SmartInput
+            projectId={projectId || undefined}
+            onFill={(d) => {
+              setForm((f) => ({
+                ...f,
+                title: d.title,
+                description: d.description ?? f.description,
+                priority: d.priority ?? f.priority,
+                dueDate: d.dueDate ?? f.dueDate,
+                assigneeId: d.assigneeId ?? f.assigneeId,
+                labelIds: d.labelIds.length ? d.labelIds : f.labelIds,
+              }));
+              // A subtask stays in its parent's project
+              if (d.projectId && !defaults?.parentId && d.projectId !== projectId) {
+                setProjectId(d.projectId);
+                set("milestoneId", "");
+                setValues({});
+              }
+            }}
+          />
         )}
         <input
           data-autofocus

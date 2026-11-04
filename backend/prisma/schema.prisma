@@ -106,6 +106,8 @@ model Organization {
   id        String   @id @default(cuid())
   name      String
   slug      String   @unique
+  /// Org admins can turn AI off; every AI feature then uses its rule-based fallback and nothing leaves the server
+  aiEnabled Boolean  @default(true)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 

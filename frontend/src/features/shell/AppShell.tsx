@@ -15,6 +15,7 @@ import NotificationBell from "../notifications/NotificationBell";
 import { useLiveUpdates, type LiveState } from "../../data/live";
 import TaskComposer from "../tasks/TaskComposer";
 import { ComposerProvider, useComposer } from "../tasks/composer";
+import { AssistantButton } from "../ai/Assistant";
 
 const navItem = ({ isActive }: { isActive: boolean }) =>
   cx(
@@ -114,6 +115,7 @@ const Sidebar = ({ onNavigate, live }: { onNavigate?: () => void; live: LiveStat
           <Users className="size-4" aria-hidden /> Teams
         </NavLink>
       )}
+      {!isClient && <AssistantButton className={cx(navItem({ isActive: false }), "w-full text-left")} />}
 
       <p className="mt-4 mb-1 px-2.5 text-[11px] font-semibold uppercase tracking-wider text-muted">Projects</p>
       <div className="scroll-thin -mx-1 min-h-0 flex-1 overflow-y-auto px-1">

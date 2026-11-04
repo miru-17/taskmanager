@@ -10,6 +10,7 @@ import { ApprovalSection, AttachmentsSection, RecurrenceSection, Section } from 
 import { actorLabel, describe } from "./activityText";
 import SaveTemplateDialog from "../templates/SaveTemplateDialog";
 import CommentsSection from "../comments/Comments";
+import { TaskAssist } from "../ai/TaskAssist";
 import { useNotificationAction } from "../../data/queries";
 import { errorStatus, getErrorMessage } from "../../data/errors";
 import { timeAgo, toDateInput } from "../../data/dates";
@@ -412,6 +413,7 @@ const TaskBody = ({ task }: { task: TaskDetail }) => {
           )}
         </Section>
 
+        <TaskAssist key={task.id} task={task} />
         <Checklist task={task} />
         <Dependencies task={task} />
         <CommentsSection task={task} />

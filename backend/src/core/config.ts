@@ -39,6 +39,17 @@ const EnvSchema = z.object({
   MAX_UPLOAD_MB: z.coerce.number().positive().max(100).default(10),
   MAX_ATTACHMENTS_PER_TASK: z.coerce.number().int().positive().max(200).default(20),
   ORG_STORAGE_QUOTA_MB: z.coerce.number().positive().default(1024),
+
+  // AI is optional. Any OpenAI-compatible chat API works: Ollama locally
+  // (AI_BASE_URL=http://localhost:11434/v1, no key) or a hosted provider with AI_API_KEY.
+  // Unset AI_BASE_URL = every AI feature uses its rule-based fallback.
+  AI_BASE_URL: z.url().optional(),
+  AI_API_KEY: z.string().optional(),
+  AI_MODEL: z.string().min(1).default("llama3.2"),
+  AI_TIMEOUT_MS: z.coerce.number().int().min(1000).max(120_000).default(20_000),
+  AI_MAX_OUTPUT_TOKENS: z.coerce.number().int().min(64).max(8000).default(1200),
+  // Per-user requests to /ai per 5 minutes
+  AI_RATE_LIMIT: z.coerce.number().int().positive().default(60),
 });
 
 const parsed = EnvSchema.safeParse(process.env);
@@ -71,6 +82,7 @@ export const config = {
     .filter(Boolean),
   mailEnabled: Boolean(env.EMAIL_USER && env.EMAIL_PASS),
   frontendUrl: env.FRONTEND_URL.replace(/\/$/, ""),
+  aiBaseUrl: env.AI_BASE_URL?.replace(/\/$/, "") ?? null,
 } as const;
 
 export type Config = typeof config;
