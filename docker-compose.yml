@@ -1,0 +1,47 @@
+# TaskForge: Postgres + API + web. Copy deploy/.env.example to .env first (secrets live there).
+#   docker compose up -d --build      →  http://localhost:8080
+name: taskforge
+services:
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: taskforge
+      POSTGRES_USER: taskforge
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}
+    volumes:
+      - db-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U taskforge -d taskforge"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  backend:
+    build: ./backend
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    env_file: .env
+    environment:
+      DATABASE_URL: postgresql://taskforge:${POSTGRES_PASSWORD}@db:5432/taskforge
+      FRONTEND_URL: ${PUBLIC_URL:-http://localhost:8080}
+      COOKIE_PATH: /api/auth
+      COOKIE_SECURE: ${COOKIE_SECURE:-false}
+    volumes:
+      - uploads:/data/uploads
+    # Not published: only reachable through the web container's /api proxy
+
+  web:
+    build: ./frontend
+    restart: unless-stopped
+    depends_on:
+      backend:
+        condition: service_healthy
+    ports:
+      - "${WEB_PORT:-8080}:8080"
+
+volumes:
+  db-data:
+  uploads:

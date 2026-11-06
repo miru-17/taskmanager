@@ -3,7 +3,7 @@
  *   npx ts-node scripts/make-super-admin.ts someone@example.com [--revoke]
  * Run from a trusted shell only — there is deliberately no API for this.
  */
-import { prisma } from "../src/core/prisma";
+import { prisma } from "../core/prisma";
 
 const main = async () => {
   const email = process.argv[2]?.trim().toLowerCase();

@@ -1,0 +1,12 @@
+{
+  "name": "taskforge-e2e",
+  "private": true,
+  "description": "Browser tests against a running TaskForge (API on :3000, web on :5173 by default)",
+  "scripts": {
+    "test": "playwright test"
+  },
+  "devDependencies": {
+    "@playwright/test": "1.63.0",
+    "pg": "^8.16.3"
+  }
+}

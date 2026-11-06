@@ -34,7 +34,7 @@ const FieldDialog = ({ projectId, open, onClose, editing }: { projectId: string;
 
   const save = useProjectAction(() => {
     const body = { name: name.trim(), required, description: description.trim() || null, ...(isSelect(type) ? { options } : {}) };
-    return editing ? api.patch(`/projects/${projectId}/fields/${editing.id}`, body) : api.post(`/projects/${projectId}/fields`, { ...body, type });
+    return (editing ? api.patch(`/projects/${projectId}/fields/${editing.id}`, body) : api.post(`/projects/${projectId}/fields`, { ...body, type })) as Promise<unknown>;
   }, "Could not save the field");
 
   const addOption = () => {

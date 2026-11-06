@@ -404,6 +404,8 @@ model Task {
   @@index([createdById])
   @@index([seriesId])
   @@index([parentId])
+  /// Due-soon and overdue sweeps, "due this week" lists
+  @@index([projectId, dueDate])
 }
 
 model Label {
@@ -855,6 +857,8 @@ model AutomationRun {
   @@unique([ruleId, eventId])
   @@index([ruleId, createdAt])
   @@index([organizationId, createdAt])
+  /// Deleting a task removes its runs
+  @@index([taskId])
 }
 
 enum Plan {

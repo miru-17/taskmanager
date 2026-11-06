@@ -1,4 +1,4 @@
-import type { Prisma, ProjectRole } from "@prisma/client";
+import type { OrgRole, Prisma, ProjectRole } from "@prisma/client";
 import { prisma } from "./prisma";
 import { forbidden, notFound } from "./errors";
 import { hasPermission } from "./rbac";
@@ -10,7 +10,9 @@ export interface Actor {
 }
 
 /** Org roles that see and manage every project in the organisation. */
-const isOrgWide = (actor: Actor) => hasPermission(actor.tenant.role, "projects:manage_any");
+/** Roles that see every project in the organization */
+export const isOrgWideRole = (role: OrgRole) => hasPermission(role, "projects:manage_any");
+const isOrgWide = (actor: Actor) => isOrgWideRole(actor.tenant.role);
 
 /**
  * Prisma filter for "projects this actor may see". Used by every project AND task

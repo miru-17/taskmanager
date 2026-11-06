@@ -19,13 +19,13 @@ export const setRefreshCookie = (res: Response, token: string) => {
     httpOnly: true, // unreadable by JavaScript, so XSS can't steal it
     secure: config.cookieSecure,
     sameSite: "strict",
-    path: "/auth", // only sent to the endpoints that need it
+    path: config.COOKIE_PATH, // only sent to the auth endpoints
     maxAge: config.REFRESH_TOKEN_TTL_DAYS * DAY_MS,
   });
 };
 
 export const clearRefreshCookie = (res: Response) => {
-  res.clearCookie(REFRESH_COOKIE, { httpOnly: true, secure: config.cookieSecure, sameSite: "strict", path: "/auth" });
+  res.clearCookie(REFRESH_COOKIE, { httpOnly: true, secure: config.cookieSecure, sameSite: "strict", path: config.COOKIE_PATH });
 };
 
 const clientMeta = (req: Request) => ({

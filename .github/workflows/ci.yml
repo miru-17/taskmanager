@@ -1,0 +1,174 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+env:
+  NODE_VERSION: "22"
+
+jobs:
+  backend:
+    name: Backend (typecheck, migrations, tests)
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: tf
+          POSTGRES_PASSWORD: tf
+          POSTGRES_DB: taskforge_test
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U tf" --health-interval 5s --health-timeout 5s --health-retries 20
+    defaults:
+      run:
+        working-directory: backend
+    env:
+      DATABASE_URL: postgresql://tf:tf@localhost:5432/taskforge_dev
+      TEST_DATABASE_URL: postgresql://tf:tf@localhost:5432/taskforge_test
+      SHADOW_DATABASE_URL: postgresql://tf:tf@localhost:5432/taskforge_shadow
+      JWT_SECRET: ci-secret-that-is-at-least-thirty-two-characters
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: backend/package-lock.json
+      - run: npm ci
+      - run: npx prisma generate
+      - run: npm run typecheck
+      - name: Create helper databases
+        run: |
+          PGPASSWORD=tf psql -h localhost -U tf -d taskforge_test -c 'CREATE DATABASE taskforge_shadow' -c 'CREATE DATABASE taskforge_dev'
+      - name: Migrations apply cleanly and match the schema (no drift)
+        run: |
+          npx prisma migrate deploy
+          npx prisma migrate diff --from-migrations prisma/migrations --to-schema-datamodel prisma/schema.prisma --shadow-database-url "$SHADOW_DATABASE_URL" --exit-code
+      - name: Tests
+        run: npm test -- --forceExit
+      - name: Build
+        run: npm run build
+      - name: Audit production dependencies (critical)
+        run: npm audit --omit=dev --audit-level=critical
+
+  frontend:
+    name: Frontend (lint, typecheck, tests, build)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - run: npm ci
+      - run: npm run lint
+      - run: npx vitest run
+      - run: npm run build
+      - run: npm audit --omit=dev --audit-level=high
+
+  e2e:
+    name: End-to-end (Playwright, real API and database)
+    runs-on: ubuntu-latest
+    needs: [backend, frontend]
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: tf
+          POSTGRES_PASSWORD: tf
+          POSTGRES_DB: taskforge_dev
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U tf" --health-interval 5s --health-timeout 5s --health-retries 20
+    env:
+      DATABASE_URL: postgresql://tf:tf@localhost:5432/taskforge_dev
+      E2E_DATABASE_URL: postgresql://tf:tf@localhost:5432/taskforge_dev
+      JWT_SECRET: ci-secret-that-is-at-least-thirty-two-characters
+      NODE_ENV: production
+      COOKIE_SECURE: "false"
+      FRONTEND_URL: http://localhost:5173
+      PORT: "3000"
+      UPLOAD_DIR: /tmp/taskforge-uploads
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+      - name: Build and start the API
+        working-directory: backend
+        run: |
+          npm ci
+          npx prisma generate
+          npx prisma migrate deploy
+          npm run build
+          nohup node dist/server.js > ../api.log 2>&1 &
+      - name: Build and serve the web app
+        working-directory: frontend
+        env:
+          VITE_API_URL: http://localhost:3000
+        run: |
+          npm ci
+          npm run build
+          nohup npx vite preview --port 5173 --strictPort > ../web.log 2>&1 &
+      - name: Wait for both
+        run: |
+          for i in $(seq 1 60); do curl -sf localhost:3000/health/ready && curl -sf localhost:5173 > /dev/null && exit 0; sleep 2; done
+          cat api.log web.log; exit 1
+      - name: Playwright
+        working-directory: e2e
+        run: |
+          npm ci
+          npx playwright install --with-deps chromium
+          npx playwright test
+      - if: failure()
+        run: cat api.log
+      - if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: e2e/playwright-report
+          retention-days: 7
+
+  docker:
+    name: Docker images and Compose stack
+    runs-on: ubuntu-latest
+    needs: [backend, frontend]
+    steps:
+      - uses: actions/checkout@v4
+      - name: Environment for the stack
+        run: |
+          cp deploy/.env.example .env
+          sed -i "s/^POSTGRES_PASSWORD=.*/POSTGRES_PASSWORD=$(openssl rand -hex 16)/; s/^JWT_SECRET=.*/JWT_SECRET=$(openssl rand -hex 32)/" .env
+      - name: Build and start
+        run: docker compose up -d --build --wait --wait-timeout 300
+      - name: The app and API answer through nginx
+        run: |
+          curl -sf http://localhost:8080/healthz
+          curl -sf http://localhost:8080/api/health/ready
+          curl -sf http://localhost:8080/ | grep -q '<div id="root">'
+          curl -sf http://localhost:8080/projects/anything | grep -q '<div id="root">'   # client-side route fallback
+          curl -sI http://localhost:8080/ | grep -qi "content-security-policy"
+      - name: Sign-up and session refresh work behind the proxy (cookie path /api/auth)
+        run: |
+          EMAIL="ci$(date +%s)@example.com"
+          curl -sf -c jar -H 'content-type: application/json' -d "{\"email\":\"$EMAIL\",\"password\":\"correct-horse-battery\",\"organizationName\":\"CI\"}" http://localhost:8080/api/auth/register
+          curl -sf -c jar -b jar -H 'content-type: application/json' -d "{\"email\":\"$EMAIL\",\"password\":\"correct-horse-battery\"}" http://localhost:8080/api/auth/login > /dev/null
+          grep -q "/api/auth" jar
+          curl -sf -b jar -c jar -X POST -H 'X-TaskForge-CSRF: 1' http://localhost:8080/api/auth/refresh | grep -q accessToken
+      - if: failure()
+        run: docker compose logs --no-color
+      - if: always()
+        run: docker compose down -v

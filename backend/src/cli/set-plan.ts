@@ -1,15 +1,15 @@
 /**
  * Operator tool for servers without Stripe (or for support): set an organization's plan.
- *   npm run plan:set -- <organization-slug> <FREE|PRO|BUSINESS>
+ *   npm run plan:set -- <organization-slug> <FREE|PRO|BUSINESS>   (in Docker: node dist/cli/set-plan.js <slug> <plan>)
  * The change is written to the organization's audit log.
  */
-import { prisma } from "../src/core/prisma";
+import { prisma } from "../core/prisma";
 
 const [slug, plan] = process.argv.slice(2);
 const PLANS = ["FREE", "PRO", "BUSINESS"] as const;
 const main = async () => {
   if (!slug || !PLANS.includes(plan as (typeof PLANS)[number])) {
-    console.error("Usage: npm run plan:set -- <organization-slug> <FREE|PRO|BUSINESS>");
+    console.error("Usage: npm run plan:set -- <organization-slug> <FREE|PRO|BUSINESS>   (in Docker: node dist/cli/set-plan.js <slug> <plan>)");
     process.exit(2);
   }
   const org = await prisma.organization.findUnique({ where: { slug }, select: { id: true, name: true, plan: true } });

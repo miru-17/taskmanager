@@ -3,7 +3,7 @@ import { z } from "zod";
 import { prisma } from "../../core/prisma";
 import { badRequest, forbidden, notFound } from "../../core/errors";
 import { audit } from "../../core/audit";
-import { projectAccessWhere, resolveProjectAccess, type Actor } from "../../core/access";
+import { isOrgWideRole, projectAccessWhere, resolveProjectAccess, type Actor } from "../../core/access";
 import { findVisible, visibleTasks } from "../tasks/tasks.service";
 import { getProvider } from "./provider";
 import { aiAvailability, data, runAI } from "./run";
@@ -133,14 +133,28 @@ const parseOut = z.object({
   projectId: z.string().nullish(),
 });
 
+/**
+ * People who can see the project, in one query (the same rule as projectAccessWhere, evaluated for
+ * every member at once instead of one count query per member).
+ */
 const assignablePeople = async (actor: Actor, projectId: string): Promise<Person[]> => {
-  const members = await prisma.membership.findMany({ where: { organizationId: actor.tenant.organizationId }, select: { role: true, user: { select: { id: true, name: true, email: true } } } });
-  const out: Person[] = [];
-  for (const m of members) {
-    const sees = await prisma.project.count({ where: { id: projectId, ...projectAccessWhere({ userId: m.user.id, tenant: { organizationId: actor.tenant.organizationId, role: m.role } }) } });
-    if (sees) out.push(m.user);
-  }
-  return out;
+  const [project, members] = await Promise.all([
+    prisma.project.findFirst({
+      where: { id: projectId, organizationId: actor.tenant.organizationId },
+      select: { visibility: true, members: { select: { userId: true } }, team: { select: { members: { select: { userId: true } } } } },
+    }),
+    prisma.membership.findMany({ where: { organizationId: actor.tenant.organizationId }, select: { role: true, user: { select: { id: true, name: true, email: true } } } }),
+  ]);
+  if (!project) return [];
+  const inProject = new Set(project.members.map((m) => m.userId));
+  const inTeam = new Set(project.team?.members.map((m) => m.userId) ?? []);
+  return members
+    .filter((m) => {
+      if (isOrgWideRole(m.role)) return true;
+      if (m.role === "CLIENT") return inProject.has(m.user.id);
+      return project.visibility === "ORGANIZATION" || inProject.has(m.user.id) || inTeam.has(m.user.id);
+    })
+    .map((m) => m.user);
 };
 
 export const parse = async (actor: Actor, input: { text: string; projectId?: string; tz?: string }) => {

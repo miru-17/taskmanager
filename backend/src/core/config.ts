@@ -19,6 +19,8 @@ const EnvSchema = z.object({
   ACCESS_TOKEN_TTL_SECONDS: z.coerce.number().int().min(60).max(3600).default(15 * 60),
   REFRESH_TOKEN_TTL_DAYS: z.coerce.number().int().min(1).max(90).default(30),
   COOKIE_SECURE: bool.optional(),
+  // Path the browser sees for the auth routes. Behind a reverse proxy that serves the API under /api, use /api/auth.
+  COOKIE_PATH: z.string().startsWith("/").default("/auth"),
 
   FRONTEND_URL: z.url().default("http://localhost:5173"),
   // Comma-separated list of allowed browser origins; defaults to FRONTEND_URL
