@@ -37,8 +37,8 @@ jobs:
       SHADOW_DATABASE_URL: postgresql://tf:tf@localhost:5432/taskforge_shadow
       JWT_SECRET: ci-secret-that-is-at-least-thirty-two-characters
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
         with:
           node-version: ${{ env.NODE_VERSION }}
           cache: npm
@@ -67,8 +67,8 @@ jobs:
       run:
         working-directory: frontend
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
         with:
           node-version: ${{ env.NODE_VERSION }}
           cache: npm
@@ -97,14 +97,13 @@ jobs:
       DATABASE_URL: postgresql://tf:tf@localhost:5432/taskforge_dev
       E2E_DATABASE_URL: postgresql://tf:tf@localhost:5432/taskforge_dev
       JWT_SECRET: ci-secret-that-is-at-least-thirty-two-characters
-      NODE_ENV: production
       COOKIE_SECURE: "false"
       FRONTEND_URL: http://localhost:5173
       PORT: "3000"
       UPLOAD_DIR: /tmp/taskforge-uploads
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
         with:
           node-version: ${{ env.NODE_VERSION }}
       - name: Build and start the API
@@ -114,7 +113,8 @@ jobs:
           npx prisma generate
           npx prisma migrate deploy
           npm run build
-          nohup node dist/server.js > ../api.log 2>&1 &
+          # Production mode only for the running server (npm ci above needs dev dependencies to build)
+          NODE_ENV=production nohup node dist/server.js > ../api.log 2>&1 &
       - name: Build and serve the web app
         working-directory: frontend
         env:
@@ -136,7 +136,7 @@ jobs:
       - if: failure()
         run: cat api.log
       - if: failure()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: playwright-report
           path: e2e/playwright-report
@@ -147,7 +147,7 @@ jobs:
     runs-on: ubuntu-latest
     needs: [backend, frontend]
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - name: Environment for the stack
         run: |
           cp deploy/.env.example .env
