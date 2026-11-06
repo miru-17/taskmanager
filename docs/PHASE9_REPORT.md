@@ -62,7 +62,11 @@ The Playwright suite (`e2e/`, 6 tests) passed locally against real servers befor
 
 ## CI result
 
-_Filled in below after the first run._
+**Green.** All four jobs passed on commit `8348cbb` ([run 42204961392](https://github.com/miru-17/taskmanager/actions/runs/42204961392)): Backend, Frontend, End-to-end and Docker.
+
+It took three runs to get there. Each failure was a real problem found by CI, not a flaky test:
+1. **The end-to-end job couldn't build.** I had set `NODE_ENV=production` for the whole job, so `npm ci` skipped the TypeScript dev dependencies. Production mode now applies only to the running server.
+2. **Sign-up failed in production without email** (see above). This broke both the end-to-end and the Docker jobs. Both pass after the fix, which I first reproduced locally against production builds.
 
 ## Honest limitations
 - **Prisma 7 upgrade pending** (the accepted CLI advisory above).
