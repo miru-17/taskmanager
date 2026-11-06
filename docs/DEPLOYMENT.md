@@ -35,7 +35,7 @@ The API trusts one proxy hop (`trust proxy 1`), so client IPs in rate limits and
 
 | Feature | Variables | Without it |
 |---|---|---|
-| Email (invitations, verification, notifications) | `EMAIL_USER`, `EMAIL_PASS` (Gmail app password) | Emails are written to the API log |
+| Email (invitations, verification, notifications) | `EMAIL_USER`, `EMAIL_PASS` (Gmail app password) | Nothing is sent and the API logs that a message was skipped. Sign-up still works, but verification, reset and invitation links can't reach anyone. `MAIL_LOG_CONTENT=true` writes the messages, links included, to the log instead: only do that if you control who can read the logs. |
 | AI | `AI_BASE_URL`, `AI_MODEL`, `AI_API_KEY` (any OpenAI-compatible API; Ollama on the host is `http://host.docker.internal:11434/v1`) | Every AI feature uses built-in rules |
 | Billing | `STRIPE_SECRET_KEY` (test mode only), `STRIPE_WEBHOOK_SECRET`, `STRIPE_PRICE_PRO`, `STRIPE_PRICE_BUSINESS` | Plans are set by the operator, plus the free trial |
 

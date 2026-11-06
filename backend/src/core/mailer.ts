@@ -31,8 +31,12 @@ export const sendMail = async (message: MailMessage): Promise<void> => {
   }
 
   if (!config.mailEnabled) {
-    if (config.isProduction) throw new Error("Email is not configured");
-    // Development convenience: no SMTP credentials, so print the message instead
+    // Never fail the request (sign-up, invitations) just because email isn't set up
+    if (config.isProduction && !config.MAIL_LOG_CONTENT) {
+      logger.warn({ subject: message.subject }, "Email not configured — message not sent (set EMAIL_USER/EMAIL_PASS)");
+      return;
+    }
+    // Development (or opted in): print the message, links included, instead of sending it
     logger.warn({ to: message.to, subject: message.subject, text: message.text }, "Email not configured — message logged");
     return;
   }

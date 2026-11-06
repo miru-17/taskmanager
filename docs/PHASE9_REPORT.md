@@ -42,6 +42,7 @@ Exit criterion from the plan: *CI green on every push*. A GitHub Actions workflo
   - The `frontend/Dockerfile` builds into nginx. nginx serves the app with security headers (CSP allows Stripe only as a form target), long caching for hashed assets, a client-side route fallback, and `/api` proxying tuned for live updates (no buffering, 1-hour reads).
 - **`docker-compose.yml`:** Postgres 16, API and web, with health-gated startup and named volumes for data and uploads. The API isn't published; it's only reachable through `/api`.
 - **Fix found while preparing the proxy setup:** the refresh-token cookie was hard-coded to path `/auth`. Behind `/api`, the browser would never send it back, so every page reload would sign people out. The path is now `COOKIE_PATH`; Compose sets `/api/auth`, and the Docker CI job checks a real refresh through nginx.
+- **Fix found by CI: sign-up failed in production without email.** The mailer threw "Email is not configured", so registration returned 500. With no email account, production now skips the message and logs that it did, without the links (`MAIL_LOG_CONTENT=true` opts into logging them). Tests cover both modes. The deployment guide had wrongly claimed emails were logged.
 - **Admin scripts:** `set-plan` and `make-super-admin` are now compiled into the image (`node dist/cli/…`).
 - **Backups:**
   - `deploy/backup.sh` dumps the database (`pg_dump` custom format) and the uploads, then checks both artifacts and keeps the last N.

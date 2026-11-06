@@ -27,6 +27,9 @@ const EnvSchema = z.object({
   CORS_ORIGINS: z.string().optional(),
   EMAIL_USER: z.string().optional(),
   EMAIL_PASS: z.string().optional(),
+  // Without email credentials: development logs each message; production only logs that one was skipped,
+  // because messages carry sign-in, reset and invitation links. Set true to log them anyway (self-hosting without SMTP).
+  MAIL_LOG_CONTENT: bool.optional(),
   LOG_LEVEL: z.enum(["fatal", "error", "warn", "info", "debug", "trace", "silent"]).optional(),
 
   // Per-IP throttling of /auth endpoints
