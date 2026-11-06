@@ -50,6 +50,13 @@ const EnvSchema = z.object({
   AI_MAX_OUTPUT_TOKENS: z.coerce.number().int().min(64).max(8000).default(1200),
   // Per-user requests to /ai per 5 minutes
   AI_RATE_LIMIT: z.coerce.number().int().positive().default(60),
+
+  // Billing (optional). Stripe test mode only: test keys start with sk_test_.
+  // Without them the app runs on plans set by the server operator (npm run plan:set) plus the free trial.
+  STRIPE_SECRET_KEY: z.string().startsWith("sk_test_", "Only Stripe test-mode keys (sk_test_…) are supported").optional(),
+  STRIPE_WEBHOOK_SECRET: z.string().startsWith("whsec_").optional(),
+  STRIPE_PRICE_PRO: z.string().startsWith("price_").optional(),
+  STRIPE_PRICE_BUSINESS: z.string().startsWith("price_").optional(),
 });
 
 const parsed = EnvSchema.safeParse(process.env);

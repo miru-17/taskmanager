@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { NavLink, Outlet, useLocation, useNavigate } from "react-router-dom";
 import toast from "react-hot-toast";
-import { BadgeCheck, BarChart3, BellRing, Building2, ChevronsUpDown, FolderKanban, ListChecks, LogOut, Menu, Moon, Plus, Shield, Sun, Users, X } from "lucide-react";
+import { BadgeCheck, BarChart3, BellRing, Building2, ChevronsUpDown, CreditCard, FolderKanban, Home, ListChecks, LogOut, Menu, Moon, Plus, Shield, Sun, Users, X } from "lucide-react";
 import { useAuth } from "../../context/AuthContext";
 import { useTheme } from "../../context/ThemeContext";
 import { useApprovalCount, useProjects } from "../../data/queries";
@@ -16,6 +16,7 @@ import { useLiveUpdates, type LiveState } from "../../data/live";
 import TaskComposer from "../tasks/TaskComposer";
 import { ComposerProvider, useComposer } from "../tasks/composer";
 import { AssistantButton } from "../ai/Assistant";
+import { BrandingApplier, useLogoUrl } from "../commercial/branding";
 
 const navItem = ({ isActive }: { isActive: boolean }) =>
   cx(
@@ -26,12 +27,17 @@ const navItem = ({ isActive }: { isActive: boolean }) =>
 const OrgSwitcher = () => {
   const { organization, organizations, switchOrganization } = useAuth();
   const navigate = useNavigate();
+  const logo = useLogoUrl();
   if (!organization) return null;
   return (
     <label className="relative flex items-center gap-2.5 rounded-lg px-2 py-1.5 hover:bg-elev">
-      <span className="flex size-7 shrink-0 items-center justify-center rounded-md bg-accent text-xs font-bold text-accent-fg" aria-hidden>
-        {organization.name.slice(0, 1).toUpperCase()}
-      </span>
+      {logo ? (
+        <img src={logo} alt="" className="size-7 shrink-0 rounded-md object-contain" />
+      ) : (
+        <span className="flex size-7 shrink-0 items-center justify-center rounded-md bg-accent text-xs font-bold text-accent-fg" aria-hidden>
+          {organization.name.slice(0, 1).toUpperCase()}
+        </span>
+      )}
       <span className="min-w-0 flex-1">
         <span className="block truncate text-sm font-semibold text-fg">{organization.name}</span>
         <span className="block truncate text-[11px] text-muted">{ROLE_LABELS[organization.role]}</span>
@@ -91,6 +97,11 @@ const Sidebar = ({ onNavigate, live }: { onNavigate?: () => void; live: LiveStat
         </button>
       )}
 
+      {isClient && (
+        <NavLink to="/portal" className={navItem}>
+          <Home className="size-4" aria-hidden /> Overview
+        </NavLink>
+      )}
       <NavLink to="/my-tasks" className={navItem}>
         <ListChecks className="size-4" aria-hidden /> My tasks
       </NavLink>
@@ -136,6 +147,11 @@ const Sidebar = ({ onNavigate, live }: { onNavigate?: () => void; live: LiveStat
         <NavLink to="/settings/organization" className={navItem}>
           <Building2 className="size-4" aria-hidden /> Organization
         </NavLink>
+        {!isClient && (
+          <NavLink to="/settings/billing" className={navItem}>
+            <CreditCard className="size-4" aria-hidden /> Plan and billing
+          </NavLink>
+        )}
         <NavLink to="/settings/security" className={navItem}>
           <Shield className="size-4" aria-hidden /> Security
         </NavLink>
@@ -226,6 +242,7 @@ const ShellInner = () => {
 
 const AppShell = () => (
   <ComposerProvider>
+    <BrandingApplier />
     <ShellInner />
   </ComposerProvider>
 );

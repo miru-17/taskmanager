@@ -2,6 +2,7 @@ import type { z } from "zod";
 import { prisma } from "../../core/prisma";
 import { logger } from "../../core/logger";
 import { AIError, getProvider, type ChatMessage } from "./provider";
+import { aiAllowanceLeft, recordAiCall } from "../../core/plans";
 
 /**
  * Every AI feature goes through here: try the model, validate what comes back,
@@ -10,7 +11,7 @@ import { AIError, getProvider, type ChatMessage } from "./provider";
  */
 
 export type Source = "ai" | "rules";
-export type FallbackReason = "not_configured" | "disabled_by_org" | "unavailable" | "invalid_output" | "cooling_down";
+export type FallbackReason = "not_configured" | "disabled_by_org" | "unavailable" | "invalid_output" | "cooling_down" | "plan_limit";
 export interface Outcome<T> {
   result: T;
   source: Source;
@@ -53,6 +54,8 @@ export const aiAvailability = async (organizationId: string): Promise<{ availabl
   const org = await prisma.organization.findUnique({ where: { id: organizationId }, select: { aiEnabled: true } });
   if (!org?.aiEnabled) return { available: false, reason: "disabled_by_org" };
   if (Date.now() < openUntil) return { available: false, reason: "cooling_down" };
+  // Over the plan's monthly AI allowance: keep working with the rules until next month
+  if (!(await aiAllowanceLeft(organizationId))) return { available: false, reason: "plan_limit" };
   return { available: true };
 };
 
@@ -83,6 +86,7 @@ export const runAI = async <S extends z.ZodType, T>(opts: {
   try {
     text = await provider.complete(messages, { json: true, maxTokens: opts.maxTokens });
     failures = 0;
+    await recordAiCall(opts.organizationId);
   } catch (err) {
     failures++;
     if (failures >= BREAKER_FAILURES) openUntil = Date.now() + BREAKER_MS;

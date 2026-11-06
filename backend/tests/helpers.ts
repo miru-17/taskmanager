@@ -11,7 +11,7 @@ export const CSRF = { "X-TaskForge-CSRF": "1" };
 
 export const resetDb = async () => {
   await prisma.$executeRawUnsafe(
-    'TRUNCATE TABLE "AuditLog", "Invitation", "Membership", "Session", "UserToken", "Task", "Organization", "User" RESTART IDENTITY CASCADE'
+    'TRUNCATE TABLE "AuditLog", "Invitation", "Membership", "Session", "UserToken", "Task", "Organization", "User", "StripeEvent" RESTART IDENTITY CASCADE'
   );
   testOutbox.length = 0;
 };

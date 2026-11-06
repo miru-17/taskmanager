@@ -22,6 +22,7 @@ import { analyticsRouter } from "./modules/analytics/analytics.routes";
 import { automationsRouter, projectAutomationsRouter } from "./modules/automation/automation.routes";
 import { registerAutomationJobs } from "./modules/automation";
 import { aiRouter } from "./modules/ai/ai.routes";
+import { billingRouter, brandingRouter, stripeWebhookHandler } from "./modules/billing/billing.routes";
 
 export const createApp = () => {
   const app = express();
@@ -34,6 +35,8 @@ export const createApp = () => {
   app.use(securityHeaders);
   app.use(corsPolicy);
   app.use(cookieParser());
+  // Before the JSON parser: Stripe signs the raw body
+  app.post("/billing/webhook", ...stripeWebhookHandler);
   app.use(express.json({ limit: "100kb" }));
 
   app.get("/health", (_req, res) => {
@@ -51,6 +54,7 @@ export const createApp = () => {
 
   app.use("/auth", authRouter);
   app.use("/user", usersRouter);
+  app.use("/orgs/current/branding", brandingRouter);
   app.use("/orgs", orgsRouter);
   app.use("/invitations", invitationsRouter);
   app.use("/tasks", tasksRouter);
@@ -71,6 +75,7 @@ export const createApp = () => {
   app.use("/analytics", analyticsRouter);
   app.use("/automations", automationsRouter);
   app.use("/ai", aiRouter);
+  app.use("/billing", billingRouter);
   app.use("/admin", adminRouter);
 
   app.use(notFoundHandler);

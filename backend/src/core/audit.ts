@@ -4,6 +4,10 @@ import { prisma } from "./prisma";
 import { logger } from "./logger";
 
 export type AuditAction =
+  | "billing.trial_started"
+  | "billing.checkout_started"
+  | "billing.plan_changed"
+  | "branding.updated"
   | "ai.settings_updated"
   | "automation.created"
   | "automation.updated"

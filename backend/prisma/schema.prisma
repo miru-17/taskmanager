@@ -103,13 +103,31 @@ model UserToken {
 // ─────────────────────────────────────────────────────────────────────────────
 
 model Organization {
-  id        String   @id @default(cuid())
+  id        String  @id @default(cuid())
   name      String
-  slug      String   @unique
+  slug      String  @unique
   /// Org admins can turn AI off; every AI feature then uses its rule-based fallback and nothing leaves the server
-  aiEnabled Boolean  @default(true)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  aiEnabled Boolean @default(true)
+
+  // ─── Plan and billing (Phase 8) ───
+  plan                 Plan      @default(FREE)
+  /// Pro trial: once per organization
+  trialEndsAt          DateTime?
+  trialUsed            Boolean   @default(false)
+  stripeCustomerId     String?   @unique
+  stripeSubscriptionId String?   @unique
+  /// Stripe's subscription status (active, past_due, canceled…)
+  subscriptionStatus   String?
+  currentPeriodEnd     DateTime?
+  cancelAtPeriodEnd    Boolean   @default(false)
+
+  // ─── Branding ───
+  brandColor String?
+  logoKey    String?
+  logoMime   String?
+  aiUsage    AiUsage[]
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
 
   memberships       Membership[]
   invitations       Invitation[]
@@ -837,4 +855,28 @@ model AutomationRun {
   @@unique([ruleId, eventId])
   @@index([ruleId, createdAt])
   @@index([organizationId, createdAt])
+}
+
+enum Plan {
+  FREE
+  PRO
+  BUSINESS
+}
+
+/// AI model calls per organization per calendar month (UTC), for plan limits
+model AiUsage {
+  organizationId String
+  /// YYYY-MM
+  month          String
+  count          Int          @default(0)
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@id([organizationId, month])
+}
+
+/// Stripe webhook events already handled (Stripe can deliver the same event more than once)
+model StripeEvent {
+  id        String   @id
+  type      String
+  createdAt DateTime @default(now())
 }

@@ -5,6 +5,7 @@ import { useAuth } from "../context/AuthContext";
 import ConfirmModal from "../components/ConfirmModal";
 import PageShell, { Card, dangerButton, inputClass, primaryButton, secondaryButton } from "../components/PageShell";
 import { AiSettingsCard } from "../features/ai/AiSettingsCard";
+import { BrandingCard } from "../features/commercial/BrandingCard";
 import { ROLE_LABELS, ROLE_ORDER, assignableRoles, type AuthPayload, type OrgRole } from "../types/auth";
 
 interface Member {
@@ -230,6 +231,7 @@ const OrganizationSettings = () => {
       )}
 
       {role !== "CLIENT" && <AiSettingsCard canEdit={can("org:update")} />}
+      {role !== "CLIENT" && <BrandingCard canEdit={can("org:update")} />}
 
       {can("members:invite") && (
         <Card title="Invite people">

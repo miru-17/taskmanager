@@ -25,7 +25,8 @@ export type Permission =
   | "teams:manage"
   | "labels:manage"
   | "templates:manage"
-  | "analytics:read";
+  | "analytics:read"
+  | "billing:manage";
 
 export interface AuthUser {
   id: number;

@@ -6,6 +6,7 @@ import { audit } from "../../core/audit";
 import { hasPermission } from "../../core/rbac";
 import { assertOrgMember, projectAccessWhere, resolveProjectAccess, type Actor } from "../../core/access";
 import { removeStoredFiles, storageKeysForProject } from "../attachments/attachments.service";
+import { assertCanAddProject, lockOrg } from "../../core/plans";
 import type { CreateProjectInput, MilestoneInput, UpdateProjectInput } from "./projects.schemas";
 
 const DAY_MS = 86_400_000;
@@ -154,6 +155,8 @@ export const createProject = async (req: Request, actor: Actor, input: CreatePro
   assertDates(input.startDate, input.dueDate);
 
   const project = await prisma.$transaction(async (tx) => {
+    await lockOrg(tx, organizationId, "projects");
+    await assertCanAddProject(organizationId, tx);
     const created = await tx.project.create({
       data: {
         organizationId,
@@ -195,6 +198,8 @@ export const updateProject = async (req: Request, actor: Actor, projectId: strin
     input.dueDate !== undefined ? input.dueDate : current.dueDate
   );
 
+  // Bringing a project back from the archive counts against the plan again
+  if (current.status === "ARCHIVED" && input.status && input.status !== "ARCHIVED") await assertCanAddProject(organizationId);
   await prisma.project.update({ where: { id: projectId }, data: input });
   if (input.completionApproval && input.completionApproval !== current.completionApproval) {
     await audit(req, { action: "project.approval_policy_changed", organizationId, targetType: "project", targetId: projectId, metadata: { from: current.completionApproval, to: input.completionApproval } });

@@ -10,6 +10,7 @@ import { audit } from "../../core/audit";
 import { canAssignRole } from "../../core/rbac";
 import { requireVerifiedEmail } from "../../core/auth";
 import type { TenantContext } from "../../core/tenant";
+import { assertCanInvite, assertSeatFree, changesSeatKind, lockOrg } from "../../core/plans";
 import { makeSlug } from "./slug";
 
 const INVITATION_TTL_MS = 7 * 24 * 60 * 60 * 1000;
@@ -117,6 +118,8 @@ export const changeMemberRole = async (
     throw badRequest("An organization needs at least one admin. Promote someone else first.");
   }
 
+  // Moving someone between internal and client seats needs a free seat of the new kind
+  if (changesSeatKind(target.role, role)) await assertSeatFree(tenant.organizationId, role);
   await prisma.membership.update({ where: { id: target.id }, data: { role } });
   await audit(req, {
     action: "member.role_changed",
@@ -197,6 +200,7 @@ export const createInvitation = async (
   });
   if (existingMember) throw conflict("That person is already a member of this organization");
 
+  await assertCanInvite(tenant.organizationId, role, email);
   const token = randomToken();
   const [, invitation, org, inviter] = await prisma.$transaction([
     // Re-inviting replaces any earlier pending invitation for the same email
@@ -301,6 +305,12 @@ export const acceptInvitation = async (req: Request, userId: number, token: stri
       data: { acceptedAt: new Date() },
     });
     if (count === 0) throw notFound("This invitation is invalid or has expired");
+    // A plan may have shrunk (trial ended, downgrade) since the invitation was sent
+    const already = await tx.membership.findUnique({ where: { organizationId_userId: { organizationId: inv.organizationId, userId } } });
+    if (!already) {
+      await lockOrg(tx, inv.organizationId, "seats");
+      await assertSeatFree(inv.organizationId, inv.role, tx);
+    }
 
     await tx.membership.upsert({
       where: { organizationId_userId: { organizationId: inv.organizationId, userId } },

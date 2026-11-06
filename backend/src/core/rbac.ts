@@ -27,6 +27,7 @@ export const PERMISSIONS = [
   "labels:manage",
   "templates:manage", // create/edit/delete task templates (using one only needs tasks:create)
   "analytics:read", // dashboards and exports, always limited to projects the caller can see
+  "billing:manage", // plan, trial, Stripe checkout and billing portal (org admins only)
 ] as const;
 
 export type Permission = (typeof PERMISSIONS)[number];

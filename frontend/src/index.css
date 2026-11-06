@@ -158,3 +158,16 @@ body {
     box-shadow: none !important;
   }
 }
+
+/* Organization brand colour (Pro and above). The server only accepts colours with ≥ 4.5:1 contrast
+   against white, so white button text stays readable; dark mode uses a lighter tint with dark text. */
+:root[data-brand] {
+  --accent: var(--brand);
+  --accent-hover: color-mix(in oklab, var(--brand) 82%, black);
+  --accent-fg: #ffffff;
+}
+:root[data-brand][data-theme="dark"] {
+  --accent: color-mix(in oklab, var(--brand) 55%, white);
+  --accent-hover: color-mix(in oklab, var(--brand) 45%, white);
+  --accent-fg: #0b0d12;
+}

@@ -9,6 +9,7 @@ import { sendMail } from "../../core/mailer";
 import { audit } from "../../core/audit";
 import { logger } from "../../core/logger";
 import { makeSlug } from "../orgs/slug";
+import { assertSeatFree, lockOrg } from "../../core/plans";
 import { createSession, revokeAllSessions } from "./sessions";
 
 const HOUR_MS = 60 * 60 * 1000;
@@ -100,6 +101,8 @@ export const register = async (req: Request, input: RegisterInput): Promise<void
         // The invitation link reached this inbox, which proves ownership of the address
         data: { email: input.email, password: passwordHash, name: input.name, emailVerifiedAt: new Date() },
       });
+      await lockOrg(tx, invitation.organizationId, "seats");
+      await assertSeatFree(invitation.organizationId, invitation.role, tx);
       await tx.membership.create({
         data: { organizationId: invitation.organizationId, userId: created.id, role: invitation.role },
       });

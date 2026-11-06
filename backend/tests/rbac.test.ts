@@ -91,6 +91,8 @@ describe("Privilege escalation", () => {
 
   it("a project manager can invite only roles below their own", async () => {
     const pm = users.PROJECT_MANAGER;
+    // This org already has one person per role (6 > Free's 5 seats); seat limits are tested in plans.test.ts
+    await prisma.organization.update({ where: { id: pm.orgId! }, data: { plan: "BUSINESS" } });
     expect(await status(pm, "post", "/orgs/current/invitations", { email: "x1@example.com", role: "ORG_ADMIN" })).toBe(403);
     expect(await status(pm, "post", "/orgs/current/invitations", { email: "x2@example.com", role: "PROJECT_MANAGER" })).toBe(403);
     expect(await status(pm, "post", "/orgs/current/invitations", { email: "x3@example.com", role: "TEAM_LEAD" })).toBe(201);

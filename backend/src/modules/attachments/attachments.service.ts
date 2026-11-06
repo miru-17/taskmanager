@@ -9,6 +9,7 @@ import { newStorageKey, storage } from "../../core/storage";
 import { canTouchTask, resolveProjectAccess, type Actor } from "../../core/access";
 import { editableTask, findVisible } from "../tasks/tasks.service";
 import { logActivity } from "../tasks/lifecycle";
+import { assertStorage, limitsFor } from "../../core/plans";
 import { FILE_TYPES, detect, safeFileName } from "./filetypes";
 
 const MB = 1024 * 1024;
@@ -44,6 +45,8 @@ export const uploadAttachment = async (req: Request, actor: Actor, taskId: numbe
       if ((used._sum.size ?? 0) + file.buffer.length > config.ORG_STORAGE_QUOTA_MB * MB) {
         throw new AppError(413, "QUOTA_EXCEEDED", `Your organization has used its ${config.ORG_STORAGE_QUOTA_MB} MB of file storage. Delete some files first.`);
       }
+      // The plan's storage allowance (the server-wide cap above still applies on top)
+      await assertStorage(actor.tenant.organizationId, file.buffer.length, used._sum.size ?? 0);
       // Write the file inside the transaction; if anything after this fails, it's removed again
       await storage.put(storageKey, file.buffer);
       written = true;
@@ -120,5 +123,5 @@ export const removeStoredFiles = async (keys: string[]) => {
 
 export const storageUsage = async (organizationId: string) => {
   const r = await prisma.attachment.aggregate({ where: { organizationId }, _sum: { size: true }, _count: { _all: true } });
-  return { usedBytes: r._sum.size ?? 0, files: r._count._all, quotaBytes: config.ORG_STORAGE_QUOTA_MB * MB, maxFileBytes: config.MAX_UPLOAD_MB * MB, allowedExtensions };
+  return { usedBytes: r._sum.size ?? 0, files: r._count._all, quotaBytes: Math.min(config.ORG_STORAGE_QUOTA_MB, (await limitsFor(organizationId)).limits.storageMb) * MB, maxFileBytes: config.MAX_UPLOAD_MB * MB, allowedExtensions };
 };

@@ -26,6 +26,8 @@ import CalendarView from "./features/views/CalendarView";
 import TimelineView from "./features/views/TimelineView";
 import SettingsView from "./features/views/SettingsView";
 import AutomationsView from "./features/views/AutomationsView";
+import Billing from "./pages/Billing";
+import Portal from "./pages/Portal";
 import { useAuth } from "./context/AuthContext";
 import type { ReactNode } from "react";
 
@@ -38,11 +40,18 @@ const GuestOnly = ({ children }: { children: ReactNode }) => {
 
 const protectedPage = (page: ReactNode) => <ProtectedRoute>{page}</ProtectedRoute>;
 
+/** Clients land on their portal; everyone else on My tasks. */
+const HomeRedirect = () => {
+  const { organization } = useAuth();
+  return <Navigate to={organization?.role === "CLIENT" ? "/portal" : "/my-tasks"} replace />;
+};
+
 export function AppRoutes() {
   return (
     <Routes>
       <Route element={protectedPage(<AppShell />)}>
-        <Route index element={<Navigate to="/my-tasks" replace />} />
+        <Route index element={<HomeRedirect />} />
+        <Route path="portal" element={<Portal />} />
         <Route path="my-tasks" element={<MyTasks />} />
         <Route path="projects" element={<Projects />} />
         <Route path="projects/:projectId" element={<ProjectLayout />}>
@@ -60,6 +69,7 @@ export function AppRoutes() {
         <Route path="analytics" element={<Analytics />} />
         <Route path="change-password" element={<ChangePassword />} />
         <Route path="settings/organization" element={<OrganizationSettings />} />
+        <Route path="settings/billing" element={<Billing />} />
         <Route path="settings/security" element={<SecuritySettings />} />
         <Route path="settings/notifications" element={<NotificationSettings />} />
       </Route>

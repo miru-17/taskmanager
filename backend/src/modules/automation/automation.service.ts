@@ -7,6 +7,7 @@ import { resolveProjectAccess, type Actor } from "../../core/access";
 import { assertAssignable, assertLabels, findVisible } from "../tasks/tasks.service";
 import { ruleBody, ruleUpdateBody, type Action, type Condition, type RuleInput, type Trigger } from "./definitions";
 import { conditionHolds, describeAction, triggerMatches } from "./engine";
+import { assertCanEnableAutomation } from "../../core/plans";
 import type { z } from "zod";
 
 export const MAX_RULES_PER_PROJECT = 50;
@@ -95,6 +96,7 @@ export const createRule = async (req: Request, actor: Actor, projectId: string, 
   await assertCanManage(actor, projectId);
   if ((await prisma.automationRule.count({ where: { projectId } })) >= MAX_RULES_PER_PROJECT) throw new AppError(409, "TOO_MANY_RULES", `A project can have at most ${MAX_RULES_PER_PROJECT} automations`);
   await assertReferences(actor, projectId, input.conditions, input.actions);
+  if (input.enabled) await assertCanEnableAutomation(actor.tenant.organizationId);
   const r = await prisma.automationRule.create({
     data: {
       organizationId: actor.tenant.organizationId,
@@ -129,6 +131,7 @@ export const updateRule = async (req: Request, actor: Actor, id: string, input: 
   const m = merged.data;
   await assertReferences(actor, existing.projectId, m.conditions, m.actions);
   const reenabled = m.enabled && !existing.enabled;
+  if (reenabled) await assertCanEnableAutomation(actor.tenant.organizationId);
   const r = await prisma.automationRule.update({
     where: { id },
     data: {
